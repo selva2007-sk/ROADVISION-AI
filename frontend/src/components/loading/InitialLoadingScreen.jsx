@@ -54,9 +54,9 @@ export default function InitialLoadingScreen({ isReady, onFinish }) {
       {/* Background ambient smart-city grid light */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-950/40 via-[#0B1220]/80 to-[#0B1220] pointer-events-none"></div>
 
-      <div className="relative z-10 flex flex-col items-center max-w-sm px-6 text-center">
+      <div className="relative z-10 flex flex-col items-center max-w-xs sm:max-w-sm px-4 sm:px-6 text-center w-full">
         {/* Animated Circular Loader with JSTV Centered */}
-        <div className="relative flex items-center justify-center w-36 h-36 mb-8">
+        <div className="relative flex items-center justify-center w-32 h-32 sm:w-36 sm:h-36 mb-6 sm:mb-8">
           {/* Outer Glowing Rotating Ring */}
           <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-blue-500 border-r-blue-400 animate-spin shadow-[0_0_20px_rgba(37,99,235,0.4)]"></div>
 
@@ -70,7 +70,7 @@ export default function InitialLoadingScreen({ isReady, onFinish }) {
           <div className="absolute inset-4 rounded-full bg-blue-950/50 border border-blue-500/20 backdrop-blur-sm flex items-center justify-center">
             {/* Center JSTV Letters - Non-rotating, perfectly upright & legible */}
             <div className="flex flex-col items-center justify-center select-none">
-              <span className="font-mono font-black text-3xl tracking-widest text-transparent bg-clip-text bg-gradient-to-br from-white via-blue-100 to-sky-400 drop-shadow-[0_2px_10px_rgba(56,189,248,0.5)]">
+              <span className="font-mono font-black text-2xl sm:text-3xl tracking-widest text-transparent bg-clip-text bg-gradient-to-br from-white via-blue-100 to-sky-400 drop-shadow-[0_2px_10px_rgba(56,189,248,0.5)]">
                 JSTV
               </span>
               <span className="text-[9px] font-bold uppercase tracking-wider text-blue-400/80 -mt-1">
@@ -88,16 +88,16 @@ export default function InitialLoadingScreen({ isReady, onFinish }) {
         {/* ROADVISION AI Branding */}
         <div className="space-y-1 mb-6">
           <div className="flex items-center justify-center gap-2">
-            <span className="font-extrabold text-2xl tracking-wider text-white">ROADVISION</span>
+            <span className="font-extrabold text-xl sm:text-2xl tracking-wider text-white">ROADVISION</span>
             <span className="text-xs font-bold px-2 py-0.5 rounded bg-blue-600 text-white shadow-sm">AI</span>
           </div>
-          <p className="text-xs uppercase tracking-[0.25em] text-slate-400 font-medium">
+          <p className="text-[11px] sm:text-xs uppercase tracking-[0.25em] text-slate-400 font-medium">
             Intelligent Road Monitoring
           </p>
         </div>
 
         {/* Dynamic Progress Ticker & Progress Bar */}
-        <div className="w-64 space-y-2.5">
+        <div className="w-56 sm:w-64 space-y-2.5">
           <div className="h-1 w-full bg-slate-800 rounded-full overflow-hidden relative">
             <div className="h-full bg-gradient-to-r from-blue-600 to-sky-400 rounded-full animate-[progress_3s_ease-in-out_infinite]"></div>
           </div>

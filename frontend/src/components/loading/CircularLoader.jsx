@@ -48,39 +48,39 @@ export default function CircularLoader() {
   return (
     <div
       ref={sectionRef}
-      className="bg-gradient-to-r from-[#0B1220] via-[#101828] to-[#0B1220] rounded-3xl p-8 border border-slate-800 shadow-xl text-white relative overflow-hidden"
+      className="bg-gradient-to-r from-[#0B1220] via-[#101828] to-[#0B1220] rounded-2xl sm:rounded-3xl p-5 sm:p-8 border border-slate-800 shadow-xl text-white relative overflow-hidden"
     >
       {/* Background ambient lighting */}
       <div className="absolute -right-16 -top-16 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
       <div className="absolute -left-16 -bottom-16 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
-      <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+      <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6 sm:gap-8">
         {/* Left: Text & System Narrative */}
-        <div className="space-y-4 max-w-xl text-center md:text-left">
+        <div className="space-y-3 sm:space-y-4 max-w-xl text-center md:text-left min-w-0">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-semibold">
             <Cpu size={14} />
             <span>ROADVISION AI · JSTV Integrated Scanning Core</span>
           </div>
 
-          <h3 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white">
+          <h3 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-white">
             High-Precision Pavement Perception Engine
           </h3>
 
-          <p className="text-sm text-slate-300 leading-relaxed">
+          <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
             The <strong className="text-sky-300 font-bold">JSTV</strong> visual telemetry framework continuously correlates dashcam frames with RTK satellite coordinates. When road damage is detected, spatial duplicate filtering automatically binds the pothole or crack directly to the municipal GIS map.
           </p>
 
-          <div className="grid grid-cols-3 gap-3 pt-2 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 text-xs">
             <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
-              <div className="text-slate-400">Scan Frequency</div>
+              <div className="text-slate-400 text-[11px]">Scan Frequency</div>
               <div className="text-white font-bold text-sm mt-0.5">30 FPS Video</div>
             </div>
             <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
-              <div className="text-slate-400">Position Fix</div>
+              <div className="text-slate-400 text-[11px]">Position Fix</div>
               <div className="text-emerald-400 font-bold text-sm mt-0.5">&lt; 3.5m GPS</div>
             </div>
             <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
-              <div className="text-slate-400">Pothole Accuracy</div>
+              <div className="text-slate-400 text-[11px]">Pothole Accuracy</div>
               <div className="text-blue-400 font-bold text-sm mt-0.5">94.2% AI Conf</div>
             </div>
           </div>
@@ -88,7 +88,7 @@ export default function CircularLoader() {
 
         {/* Right: The 3-Second Scroll-Triggered Circular Ring Animation */}
         <div className="flex flex-col items-center justify-center shrink-0">
-          <div className="relative flex items-center justify-center w-40 h-40">
+          <div className="relative flex items-center justify-center w-36 h-36 sm:w-40 sm:h-40">
             {/* Outer Spinning Ring (Active during scroll intersection) */}
             <div
               className={`absolute inset-0 rounded-full border-2 border-transparent transition-all duration-700 ${

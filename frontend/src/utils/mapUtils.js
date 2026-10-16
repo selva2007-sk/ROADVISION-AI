@@ -1,4 +1,33 @@
+import React, { useEffect } from 'react';
 import L from 'leaflet';
+import { useMap } from 'react-leaflet';
+
+/**
+ * Automatically calls Leaflet's invalidateSize() when container resizes,
+ * sidebar toggles, or layout transitions finish.
+ */
+export function MapResizeHandler() {
+  const map = useMap();
+
+  useEffect(() => {
+    const handleResize = () => {
+      map.invalidateSize();
+    };
+
+    window.addEventListener('resize', handleResize);
+    // Delayed invalidation for animation transitions
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 300);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(timer);
+    };
+  }, [map]);
+
+  return null;
+}
 
 /**
  * Creates custom SVG map marker icons matching severity color codes

@@ -40,23 +40,27 @@ export default function StatCard({
   const currentTone = tones[tone] || tones.blue;
 
   return (
-    <div className="bg-white rounded-2xl p-5 border border-[#E4E7EC] shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</p>
-          <div className="mt-2 text-2xl font-bold text-slate-900 tracking-tight">{value}</div>
+    <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-[#E4E7EC] shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between min-w-0">
+      <div className="flex items-start justify-between gap-2 min-w-0">
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider truncate" title={label}>
+            {label}
+          </p>
+          <div className="mt-1 sm:mt-2 text-lg sm:text-2xl font-bold text-slate-900 tracking-tight truncate" title={String(value)}>
+            {value}
+          </div>
         </div>
-        <div className={`p-3 rounded-xl ${currentTone.bg} ${currentTone.text} border ${currentTone.border}`}>
-          <Icon size={22} />
+        <div className={`p-2 sm:p-3 rounded-xl ${currentTone.bg} ${currentTone.text} border ${currentTone.border} shrink-0 flex items-center justify-center`}>
+          <Icon size={18} className="sm:w-[22px] sm:h-[22px]" />
         </div>
       </div>
 
       {(subtitle || trend) && (
-        <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-          <span className="truncate">{subtitle}</span>
+        <div className="mt-2.5 sm:mt-3 pt-2.5 sm:pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] sm:text-xs text-slate-500 min-w-0">
+          <span className="truncate" title={subtitle}>{subtitle}</span>
           {trend && (
             <span
-              className={`font-semibold ml-2 px-1.5 py-0.5 rounded text-[11px] ${
+              className={`font-semibold ml-2 px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] shrink-0 ${
                 trendPositive
                   ? 'bg-emerald-50 text-emerald-700'
                   : 'bg-rose-50 text-rose-700'

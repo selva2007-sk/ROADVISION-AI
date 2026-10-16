@@ -18,7 +18,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet'
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import StatCard from '../components/StatCard';
 import CircularLoader from '../components/loading/CircularLoader';
-import { createDamageIcon, createVehicleIcon } from '../utils/mapUtils';
+import { createDamageIcon, createVehicleIcon, MapResizeHandler } from '../utils/mapUtils';
 
 export default function OverviewPage({
   dashboard,
@@ -54,8 +54,8 @@ export default function OverviewPage({
 
   return (
     <div className="space-y-6">
-      {/* 6 Core KPI Cards */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      {/* 6 Core KPI Cards (Responsive Bootstrap-style grid) */}
+      <section className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
         <StatCard
           label="Total Inspections"
           value={dashboard.inspection_count || 3}
@@ -192,13 +192,14 @@ export default function OverviewPage({
             </div>
 
             {/* Leaflet Map Preview */}
-            <div className="h-[280px] w-full rounded-xl overflow-hidden mt-4 border border-slate-200 relative">
+            <div className="h-[220px] sm:h-[280px] w-full rounded-xl overflow-hidden mt-4 border border-slate-200 relative">
               <MapContainer
                 center={[dashboard.latitude || 12.973, dashboard.longitude || 77.598]}
                 zoom={14}
                 scrollWheelZoom={false}
                 className="h-full w-full z-0"
               >
+                <MapResizeHandler />
                 <TileLayer
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution="&copy; OpenStreetMap contributors"
@@ -285,8 +286,8 @@ export default function OverviewPage({
             </button>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+          <div className="overflow-x-auto -mx-2 sm:mx-0">
+            <table className="w-full text-left text-xs min-w-[540px]">
               <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider font-semibold border-y border-slate-200">
                 <tr>
                   <th className="py-2.5 px-3">Hazard Class</th>

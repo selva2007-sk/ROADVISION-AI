@@ -172,6 +172,7 @@ export default function App() {
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dashboard, setDashboard] = useState(initialDashboard);
   const [detections, setDetections] = useState(defaultDetections);
   const [vehicles, setVehicles] = useState(defaultVehicles);
@@ -366,20 +367,22 @@ export default function App() {
         />
       )}
 
-      <div className="min-h-screen bg-[#F5F7FB] text-[#111827] font-sans flex">
-        {/* Fixed Collapsible Dark Navy Sidebar */}
+      <div className="min-h-screen bg-[#F5F7FB] text-[#111827] font-sans flex w-full overflow-x-hidden">
+        {/* Responsive Sidebar (Fixed on Desktop, Sliding Drawer on Mobile) */}
         <Sidebar
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           collapsed={sidebarCollapsed}
           setCollapsed={setSidebarCollapsed}
+          mobileOpen={mobileMenuOpen}
+          setMobileOpen={setMobileMenuOpen}
           userRole={user.role}
         />
 
-        {/* Main Content Area */}
+        {/* Main Content Area (0 margin on mobile, margin-left only on md: screens) */}
         <div
-          className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${
-            sidebarCollapsed ? 'ml-20' : 'ml-64'
+          className={`flex-1 flex flex-col min-h-screen w-full min-w-0 transition-all duration-300 ml-0 ${
+            sidebarCollapsed ? 'md:ml-20' : 'md:ml-64'
           }`}
         >
           {/* Top Header */}
@@ -392,12 +395,13 @@ export default function App() {
             refreshing={refreshing}
             onNavigate={setActiveTab}
             onRoleChange={handleRoleChange}
+            onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)}
           />
 
           {/* Dynamic Page Views with Role Guards */}
-          <main className="flex-1 p-6 max-w-7xl w-full mx-auto">
+          <main className="flex-1 p-3.5 sm:p-5 md:p-6 max-w-7xl w-full mx-auto min-w-0">
             {!isPermitted ? (
-              <div className="bg-white rounded-3xl p-10 border border-slate-200 text-center max-w-lg mx-auto shadow-sm my-12 space-y-4">
+              <div className="bg-white rounded-3xl p-6 sm:p-10 border border-slate-200 text-center max-w-lg mx-auto shadow-sm my-8 sm:my-12 space-y-4">
                 <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto border border-rose-100">
                   <ShieldAlert size={28} />
                 </div>

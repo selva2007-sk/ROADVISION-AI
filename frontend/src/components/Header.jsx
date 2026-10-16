@@ -8,8 +8,8 @@ import {
   Cpu,
   AlertTriangle,
   CheckCircle2,
-  X,
-  ExternalLink,
+  Menu,
+  Activity,
 } from 'lucide-react';
 import ProfileDropdown from './profile/ProfileDropdown';
 
@@ -22,6 +22,7 @@ export default function Header({
   refreshing,
   onNavigate,
   onRoleChange,
+  onToggleMobileMenu,
 }) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showNotifications, setShowNotifications] = useState(false);
@@ -84,7 +85,7 @@ export default function Header({
     }
 
     return (
-      <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${badgeClass}`}>
+      <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${badgeClass} shrink-0`}>
         <span className={`w-1.5 h-1.5 rounded-full ${dotClass} animate-pulse`} />
         <Icon size={13} className="opacity-80" />
         <span className="capitalize">{label}: {status}</span>
@@ -93,19 +94,33 @@ export default function Header({
   };
 
   return (
-    <header className="sticky top-0 z-20 bg-white border-b border-[#E4E7EC] px-6 py-3 flex flex-wrap items-center justify-between gap-4 shadow-sm">
-      {/* Title & Breadcrumbs */}
-      <div>
-        <div className="flex items-center gap-2 text-xs font-medium text-slate-500 mb-0.5">
-          <span>RoadVision AI</span>
-          <span>/</span>
-          <span className="text-blue-600 font-semibold">{breadcrumb || pageTitle}</span>
+    <header className="sticky top-0 z-30 bg-white border-b border-[#E4E7EC] px-3.5 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-3 shadow-sm">
+      {/* Left: Mobile Menu Toggle & Title */}
+      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+        {/* Hamburger Menu Toggle on Mobile */}
+        <button
+          onClick={onToggleMobileMenu}
+          className="p-2 text-slate-700 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition border border-slate-200 md:hidden shrink-0 flex items-center justify-center min-w-[38px] min-h-[38px]"
+          aria-label="Open navigation menu"
+          title="Open menu"
+        >
+          <Menu size={18} />
+        </button>
+
+        <div className="min-w-0">
+          <div className="hidden sm:flex items-center gap-1.5 text-xs font-medium text-slate-500 mb-0.5">
+            <span>RoadVision AI</span>
+            <span>/</span>
+            <span className="text-blue-600 font-semibold truncate">{breadcrumb || pageTitle}</span>
+          </div>
+          <h1 className="text-sm sm:text-base md:text-lg font-bold text-slate-900 tracking-tight truncate max-w-[160px] xs:max-w-[220px] sm:max-w-none">
+            {pageTitle}
+          </h1>
         </div>
-        <h1 className="text-lg font-bold text-slate-900 tracking-tight">{pageTitle}</h1>
       </div>
 
-      {/* System Status Indicators (Backend, Camera, GPS, AI Model) */}
-      <div className="hidden md:flex flex-wrap items-center gap-2">
+      {/* Center: System Status Indicators (Visible on lg: screens) */}
+      <div className="hidden lg:flex items-center gap-2">
         {getStatusBadge(
           systemStatus.backendConnected ? 'Connected' : 'Offline',
           'API',
@@ -128,10 +143,10 @@ export default function Header({
         )}
       </div>
 
-      {/* Actions, Time, Notifications & Profile */}
-      <div className="flex items-center gap-3">
-        {/* Real-time Clock */}
-        <div className="hidden lg:block text-right pr-2 border-r border-slate-200">
+      {/* Right: Actions, Clock, Notifications & User Avatar */}
+      <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+        {/* Real-time Clock (Desktop only) */}
+        <div className="hidden xl:block text-right pr-2 border-r border-slate-200">
           <div className="text-xs font-semibold text-slate-800">
             {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
           </div>
@@ -144,8 +159,9 @@ export default function Header({
         <button
           onClick={onRefresh}
           disabled={refreshing}
-          className="p-2 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition border border-slate-200"
+          className="p-2 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition border border-slate-200 min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0"
           title="Refresh dashboard data"
+          aria-label="Refresh data"
         >
           <RefreshCw size={15} className={refreshing ? 'animate-spin text-blue-600' : ''} />
         </button>
@@ -154,8 +170,9 @@ export default function Header({
         <div className="relative" ref={notifyRef}>
           <button
             onClick={() => setShowNotifications(!showNotifications)}
-            className="p-2 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition border border-slate-200 relative"
+            className="p-2 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition border border-slate-200 relative min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0"
             title="Notifications"
+            aria-label="View notifications"
           >
             <Bell size={15} />
             <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
@@ -163,7 +180,7 @@ export default function Header({
           </button>
 
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-200 z-50 overflow-hidden divide-y divide-slate-100 animate-in fade-in slide-in-from-top-2 duration-150">
+            <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] max-w-xs sm:w-80 bg-white rounded-2xl shadow-xl border border-slate-200 z-50 overflow-hidden divide-y divide-slate-100 animate-in fade-in slide-in-from-top-2 duration-150">
               <div className="p-3 bg-slate-50 flex items-center justify-between">
                 <span className="font-bold text-xs text-slate-900">System Road Alerts</span>
                 <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold">

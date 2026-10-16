@@ -1,4 +1,6 @@
-const API_BASE = 'http://localhost:5000/api';
+// In production on Vercel, /api is routed to the backend service via vercel.json rewrites.
+// For local standalone development, it proxies via vite.config.js or falls back to VITE_API_URL.
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 /**
  * Standardized API client for RoadVision AI backend

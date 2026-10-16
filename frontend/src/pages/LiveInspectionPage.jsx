@@ -288,23 +288,23 @@ export default function LiveInspectionPage({
   return (
     <div className="space-y-6">
       {/* Top Controls Strip */}
-      <div className="bg-white rounded-2xl p-4 border border-[#E4E7EC] shadow-sm flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-[#E4E7EC] shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 sm:gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
+          <div className="p-2 sm:p-2.5 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 shrink-0">
             <Camera size={22} />
           </div>
           <div>
-            <h2 className="text-base font-bold text-slate-900">Vehicle Camera Detection Station</h2>
-            <p className="text-xs text-slate-500">Live AI inference with spatial duplicate filtering</p>
+            <h2 className="text-sm sm:text-base font-bold text-slate-900">Vehicle Camera Detection Station</h2>
+            <p className="text-[11px] sm:text-xs text-slate-500">Live AI inference with spatial duplicate filtering</p>
           </div>
         </div>
 
         {/* Source Selector & Vehicle Selector */}
-        <div className="flex flex-wrap items-center gap-3 text-xs">
-          <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-1">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs">
+          <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-1 w-full sm:w-auto">
             <button
               onClick={() => setSourceMode('webcam')}
-              className={`px-3 py-1.5 rounded-lg font-semibold transition ${
+              className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-lg font-semibold transition text-center ${
                 sourceMode === 'webcam'
                   ? 'bg-white text-blue-600 shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
@@ -314,7 +314,7 @@ export default function LiveInspectionPage({
             </button>
             <button
               onClick={() => setSourceMode('simulated')}
-              className={`px-3 py-1.5 rounded-lg font-semibold transition ${
+              className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-lg font-semibold transition text-center ${
                 sourceMode === 'simulated'
                   ? 'bg-white text-blue-600 shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
@@ -324,12 +324,12 @@ export default function LiveInspectionPage({
             </button>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-1 sm:flex-initial justify-between sm:justify-start">
             <span className="text-slate-500 font-medium">Vehicle:</span>
             <select
               value={selectedVehicle}
               onChange={(e) => setSelectedVehicle(e.target.value)}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white font-medium text-slate-800"
+              className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white font-medium text-slate-800 flex-1 sm:flex-initial"
             >
               {vehicles?.map((v) => (
                 <option key={v.vehicle_id} value={v.vehicle_id}>
@@ -343,23 +343,23 @@ export default function LiveInspectionPage({
           {!isInspecting ? (
             <button
               onClick={startInspection}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition shadow-sm"
+              className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition shadow-sm w-full sm:w-auto min-h-[36px]"
             >
               <Play size={16} />
               <span>Start Inspection</span>
             </button>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <button
                 onClick={togglePause}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold transition"
+                className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold transition min-h-[36px]"
               >
                 {isPaused ? <Play size={15} /> : <Pause size={15} />}
                 <span>{isPaused ? 'Resume' : 'Pause'}</span>
               </button>
               <button
                 onClick={stopInspection}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold transition"
+                className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold transition min-h-[36px]"
               >
                 <Square size={15} />
                 <span>Stop & Save</span>
@@ -424,20 +424,20 @@ export default function LiveInspectionPage({
             </div>
 
             {/* Telemetry HUD on Bottom Left */}
-            <div className="absolute bottom-4 left-4 flex flex-wrap gap-2 text-xs font-mono">
-              <div className="px-2.5 py-1 rounded bg-slate-900/80 backdrop-blur border border-white/10 text-slate-200">
+            <div className="absolute bottom-2 left-2 sm:bottom-4 sm:left-4 flex flex-wrap gap-1 sm:gap-2 text-[10px] sm:text-xs font-mono max-w-[calc(100%-105px)]">
+              <div className="px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded bg-slate-900/80 backdrop-blur border border-white/10 text-slate-200">
                 GPS: {liveCoords.lat.toFixed(4)}, {liveCoords.lng.toFixed(4)}
               </div>
-              <div className="px-2.5 py-1 rounded bg-slate-900/80 backdrop-blur border border-white/10 text-slate-200">
+              <div className="px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded bg-slate-900/80 backdrop-blur border border-white/10 text-slate-200">
                 SPD: {speedKmh} km/h
               </div>
-              <div className="px-2.5 py-1 rounded bg-slate-900/80 backdrop-blur border border-white/10 text-emerald-400">
+              <div className="px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded bg-slate-900/80 backdrop-blur border border-white/10 text-emerald-400">
                 TIME: {formatDuration(secondsElapsed)}
               </div>
             </div>
 
             {/* Detection count pill */}
-            <div className="absolute bottom-4 right-4 px-3 py-1 rounded-lg bg-blue-600/90 backdrop-blur text-white text-xs font-bold border border-blue-400/30">
+            <div className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 px-2 py-0.5 sm:px-3 sm:py-1 rounded-lg bg-blue-600/90 backdrop-blur text-white text-[10px] sm:text-xs font-bold border border-blue-400/30">
               Detections: {recentDetections.length}
             </div>
           </div>

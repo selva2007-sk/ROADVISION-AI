@@ -16,8 +16,10 @@ import {
   Layers,
   Search,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
-import { createDamageIcon, createVehicleIcon } from '../utils/mapUtils';
+import { createDamageIcon, createVehicleIcon, MapResizeHandler } from '../utils/mapUtils';
 
 // Helper component to smoothly center map
 function ChangeView({ center, zoom }) {
@@ -34,6 +36,7 @@ export default function DigitalMapPage({
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [mobileLegendOpen, setMobileLegendOpen] = useState(false);
 
   // Default coordinates centered on vehicle or city center
   const defaultCenter = [dashboard.latitude || 12.973, dashboard.longitude || 77.598];
@@ -75,9 +78,9 @@ export default function DigitalMapPage({
   return (
     <div className="space-y-4">
       {/* Top Filter & Search Bar */}
-      <div className="bg-white rounded-2xl p-4 border border-[#E4E7EC] shadow-sm flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-[#E4E7EC] shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
         {/* Search */}
-        <div className="relative min-w-[220px] flex-1 max-w-sm">
+        <div className="relative min-w-0 flex-1 max-w-full sm:max-w-sm">
           <Search size={16} className="absolute left-3 top-2.5 text-slate-400" />
           <input
             type="text"
@@ -88,15 +91,15 @@ export default function DigitalMapPage({
           />
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3 text-xs">
+        {/* Filters and Center Button */}
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs">
           {/* Severity Filter */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-slate-500 font-medium">Severity:</span>
+          <div className="flex items-center gap-1.5 flex-1 sm:flex-initial min-w-[120px]">
+            <span className="text-slate-500 font-medium hidden xs:inline">Severity:</span>
             <select
               value={severityFilter}
               onChange={(e) => setSeverityFilter(e.target.value)}
-              className="py-1.5 px-2.5 rounded-xl border border-slate-200 bg-white font-medium text-slate-700"
+              className="py-1.5 px-2.5 rounded-xl border border-slate-200 bg-white font-medium text-slate-700 w-full sm:w-auto"
             >
               <option value="all">All Severities</option>
               <option value="High">High (Red)</option>
@@ -106,12 +109,12 @@ export default function DigitalMapPage({
           </div>
 
           {/* Category Filter */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-slate-500 font-medium">Category:</span>
+          <div className="flex items-center gap-1.5 flex-1 sm:flex-initial min-w-[120px]">
+            <span className="text-slate-500 font-medium hidden xs:inline">Hazard:</span>
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="py-1.5 px-2.5 rounded-xl border border-slate-200 bg-white font-medium text-slate-700"
+              className="py-1.5 px-2.5 rounded-xl border border-slate-200 bg-white font-medium text-slate-700 w-full sm:w-auto"
             >
               <option value="all">All Hazards</option>
               <option value="pothole">Potholes</option>
@@ -125,7 +128,7 @@ export default function DigitalMapPage({
           {/* Quick Center Vehicle */}
           <button
             onClick={handleCenterVehicle}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 font-semibold transition"
+            className="flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 font-semibold transition shrink-0 min-h-[36px]"
           >
             <Compass size={14} />
             <span>Center on Vehicle</span>
@@ -134,14 +137,15 @@ export default function DigitalMapPage({
       </div>
 
       {/* Main Map Card */}
-      <div className="bg-white rounded-2xl p-4 border border-[#E4E7EC] shadow-sm relative">
-        <div className="h-[620px] w-full rounded-xl overflow-hidden border border-slate-200 relative">
+      <div className="bg-white rounded-2xl p-2 sm:p-4 border border-[#E4E7EC] shadow-sm relative overflow-hidden">
+        <div className="h-[360px] sm:h-[460px] md:h-[540px] lg:h-[620px] w-full rounded-xl overflow-hidden border border-slate-200 relative">
           <MapContainer
             center={defaultCenter}
             zoom={mapZoom}
             scrollWheelZoom={true}
             className="h-full w-full z-0"
           >
+            <MapResizeHandler />
             <ChangeView center={mapCenter} zoom={mapZoom} />
 
             <TileLayer
@@ -164,7 +168,7 @@ export default function DigitalMapPage({
               position={[dashboard.latitude || 12.979, dashboard.longitude || 77.6048]}
               icon={createVehicleIcon()}
             >
-              <Popup>
+              <Popup maxWidth={260}>
                 <div className="p-1 space-y-1 text-xs">
                   <div className="font-bold text-blue-600 flex items-center gap-1">
                     <Navigation size={13} />
@@ -184,7 +188,7 @@ export default function DigitalMapPage({
                 position={[det.latitude, det.longitude]}
                 icon={createDamageIcon(det.severity)}
               >
-                <Popup maxWidth={280}>
+                <Popup maxWidth={260}>
                   <div className="p-2 space-y-2 text-xs">
                     {/* Optional Evidence Image Thumbnail */}
                     <div className="rounded-lg overflow-hidden bg-slate-900 aspect-video relative">
@@ -202,38 +206,36 @@ export default function DigitalMapPage({
                     </div>
 
                     <div>
-                      <div className="font-bold text-slate-900 text-sm capitalize">
+                      <div className="font-bold text-slate-900 capitalize text-sm">
                         {det.category.replace('_', ' ')}
                       </div>
-                      <div className="text-slate-500 text-[11px] mt-0.5">
-                        {det.road_segment || 'Highway Corridor'}
+                      <div className="text-[11px] text-slate-500 mt-0.5">
+                        {det.road_segment || 'Sector Road Corridor'}
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-[11px] bg-slate-50 p-2 rounded-lg border border-slate-100">
+                    <div className="grid grid-cols-2 gap-1 text-[11px] bg-slate-50 p-2 rounded-lg">
                       <div>
                         <span className="text-slate-400">Confidence:</span>
-                        <div className="font-semibold text-slate-800">{(det.confidence * 100).toFixed(0)}%</div>
+                        <div className="font-bold text-slate-800">{(det.confidence * 100).toFixed(0)}%</div>
                       </div>
                       <div>
-                        <span className="text-slate-400">Review Status:</span>
-                        <div className="font-semibold text-slate-800 capitalize">{det.review_status?.replace('_', ' ')}</div>
+                        <span className="text-slate-400">Status:</span>
+                        <div className="font-bold capitalize text-slate-800">{det.review_status?.replace('_', ' ') || 'Logged'}</div>
                       </div>
                     </div>
 
-                    <div className="pt-1 flex items-center justify-between border-t border-slate-100 text-[11px]">
-                      <span className="text-slate-400 font-mono">
-                        {det.latitude.toFixed(4)}, {det.longitude.toFixed(4)}
-                      </span>
-                      {/* Direct Google Maps Navigation Link */}
+                    {/* Coordinates & Google Maps routing */}
+                    <div className="pt-1 flex items-center justify-between text-[10px] text-slate-500">
+                      <span>{det.latitude.toFixed(4)}, {det.longitude.toFixed(4)}</span>
                       <a
-                        href={`https://www.google.com/maps/dir/?api=1&destination=${det.latitude},${det.longitude}`}
+                        href={`https://www.google.com/maps/search/?api=1&query=${det.latitude},${det.longitude}`}
                         target="_blank"
-                        rel="noreferrer"
-                        className="text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline flex items-center gap-0.5 font-semibold"
                       >
                         <span>Directions</span>
-                        <ExternalLink size={11} />
+                        <ExternalLink size={10} />
                       </a>
                     </div>
                   </div>
@@ -242,8 +244,8 @@ export default function DigitalMapPage({
             ))}
           </MapContainer>
 
-          {/* Floating Map Legend */}
-          <div className="absolute bottom-6 left-6 z-[1000] bg-white/95 backdrop-blur-md p-3.5 rounded-xl shadow-md border border-slate-200 text-xs space-y-2">
+          {/* Desktop Floating Map Legend */}
+          <div className="hidden sm:block absolute bottom-6 left-6 z-[1000] bg-white/95 backdrop-blur-md p-3.5 rounded-xl shadow-md border border-slate-200 text-xs space-y-2 max-w-xs">
             <div className="font-bold text-slate-900 text-xs border-b border-slate-200 pb-1.5 flex items-center gap-1.5">
               <Layers size={14} className="text-blue-600" />
               <span>Map Layers & Legend</span>
@@ -255,7 +257,7 @@ export default function DigitalMapPage({
               </div>
               <div className="flex items-center gap-2 text-slate-700">
                 <span className="w-3 h-3 rounded-full bg-orange-500 shrink-0"></span>
-                <span>Medium Severity (Longitudinal & Web Cracks)</span>
+                <span>Medium Severity (Longitudinal Cracks)</span>
               </div>
               <div className="flex items-center gap-2 text-slate-700">
                 <span className="w-3 h-3 rounded-full bg-yellow-500 shrink-0"></span>
@@ -267,10 +269,49 @@ export default function DigitalMapPage({
               </div>
               <div className="flex items-center gap-2 text-slate-700 pt-1 border-t border-slate-100">
                 <span className="w-4 h-1 bg-blue-600 shrink-0 rounded"></span>
-                <span>Blue Line: Verified Inspected Roads Only</span>
+                <span>Blue Polyline: Inspected Road Corridors</span>
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Mobile Collapsible Legend (Appears below map on mobile devices) */}
+        <div className="sm:hidden mt-2 border-t border-slate-100 pt-2 text-xs">
+          <button
+            onClick={() => setMobileLegendOpen(!mobileLegendOpen)}
+            className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-50 text-slate-700 font-semibold text-xs"
+          >
+            <span className="flex items-center gap-1.5">
+              <Layers size={13} className="text-blue-600" />
+              <span>Map Legend & Severity Key</span>
+            </span>
+            {mobileLegendOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+
+          {mobileLegendOpen && (
+            <div className="p-3 bg-slate-50 rounded-lg mt-1 space-y-1.5 text-[11px] animate-in fade-in duration-150">
+              <div className="flex items-center gap-2 text-slate-700">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-600 shrink-0"></span>
+                <span>High Severity Damage</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-700">
+                <span className="w-2.5 h-2.5 rounded-full bg-orange-500 shrink-0"></span>
+                <span>Medium Severity Damage</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-700">
+                <span className="w-2.5 h-2.5 rounded-full bg-yellow-500 shrink-0"></span>
+                <span>Low Severity Damage</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-700">
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shrink-0"></span>
+                <span>Active Vehicle GPS Location</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-700 pt-1 border-t border-slate-200">
+                <span className="w-3 h-1 bg-blue-600 shrink-0 rounded"></span>
+                <span>Blue Polyline: Inspected Roads</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
