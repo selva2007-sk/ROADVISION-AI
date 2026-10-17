@@ -88,19 +88,19 @@ export default function AnalyticsPage() {
     : defaultTrends;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       {/* Top Banner & Export */}
-      <div className="bg-white rounded-2xl p-5 border border-[#E4E7EC] shadow-sm flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl p-4 sm:p-5 border border-[#E4E7EC] shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h2 className="text-base font-bold text-slate-900">Road Infrastructure Analytics & KPIs</h2>
-          <p className="text-xs text-slate-500">Aggregated damage distribution and repair efficiency metrics</p>
+          <h2 className="text-sm sm:text-base font-bold text-slate-900">Road Infrastructure Analytics & KPIs</h2>
+          <p className="text-[11px] sm:text-xs text-slate-500">Aggregated damage distribution and repair efficiency metrics</p>
         </div>
 
         <div className="flex items-center gap-3">
           <a
             href={api.getExportCsvUrl()}
             download
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition shadow-sm"
+            className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition shadow-sm min-h-[38px]"
           >
             <Download size={14} />
             <span>Download Full CSV</span>
@@ -108,11 +108,11 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {/* Summary KPI Pills */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Summary KPI Pills (Bootstrap-Style Responsive Grid) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className="bg-white rounded-2xl p-4 border border-[#E4E7EC] shadow-sm">
           <div className="text-xs text-slate-500 font-medium">Total Inspected Distance</div>
-          <div className="text-2xl font-bold text-slate-900 mt-1">
+          <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">
             {analyticsData?.total_km_inspected || 42.6} km
           </div>
           <div className="text-[11px] text-emerald-600 font-semibold mt-1">● Continuous GIS track samples</div>
@@ -120,7 +120,7 @@ export default function AnalyticsPage() {
 
         <div className="bg-white rounded-2xl p-4 border border-[#E4E7EC] shadow-sm">
           <div className="text-xs text-slate-500 font-medium">Total Hazards Logged</div>
-          <div className="text-2xl font-bold text-slate-900 mt-1">
+          <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">
             {analyticsData?.total_detections || 34}
           </div>
           <div className="text-[11px] text-blue-600 font-semibold mt-1">● Verified & pending review</div>
@@ -128,7 +128,7 @@ export default function AnalyticsPage() {
 
         <div className="bg-white rounded-2xl p-4 border border-[#E4E7EC] shadow-sm">
           <div className="text-xs text-slate-500 font-medium">Repair Completion Rate</div>
-          <div className="text-2xl font-bold text-emerald-600 mt-1">
+          <div className="text-xl sm:text-2xl font-bold text-emerald-600 mt-1">
             {analyticsData?.repair_completion_rate || 68.4}%
           </div>
           <div className="text-[11px] text-slate-500 mt-1">Across 6 municipal zones</div>
@@ -136,7 +136,7 @@ export default function AnalyticsPage() {
 
         <div className="bg-white rounded-2xl p-4 border border-[#E4E7EC] shadow-sm">
           <div className="text-xs text-slate-500 font-medium">Inspection Runs</div>
-          <div className="text-2xl font-bold text-slate-900 mt-1">
+          <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">
             {analyticsData?.total_sessions || 4} runs
           </div>
           <div className="text-[11px] text-purple-600 font-semibold mt-1">All active vehicles</div>
@@ -144,20 +144,20 @@ export default function AnalyticsPage() {
       </div>
 
       {/* 2 Core Visualizations: Category Bar Chart & Severity Pie Chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6">
         {/* Category Breakdown (Bar Chart) */}
-        <div className="lg:col-span-2 bg-white rounded-2xl p-5 border border-[#E4E7EC] shadow-sm flex flex-col justify-between">
+        <div className="lg:col-span-2 bg-white rounded-2xl p-4 sm:p-5 border border-[#E4E7EC] shadow-sm flex flex-col justify-between">
           <div className="pb-3 border-b border-slate-100 mb-2">
             <h3 className="font-bold text-slate-900 text-sm">Damage Detections by Hazard Category</h3>
-            <p className="text-xs text-slate-500">Breakdown of potholes, surface cracks, and road degradation</p>
+            <p className="text-[11px] sm:text-xs text-slate-500">Breakdown of potholes, surface cracks, and road degradation</p>
           </div>
 
-          <div className="h-64 w-full">
+          <div className="h-60 sm:h-64 w-full min-w-0">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={categoryData} margin={{ top: 15, right: 15, left: -15, bottom: 20 }}>
+              <BarChart data={categoryData} margin={{ top: 15, right: 15, left: -20, bottom: 25 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="category" tick={{ fontSize: 11 }} interval={0} angle={-10} textAnchor="end" />
-                <YAxis tick={{ fontSize: 11 }} />
+                <XAxis dataKey="category" tick={{ fontSize: 10 }} interval={0} angle={-15} textAnchor="end" />
+                <YAxis tick={{ fontSize: 10 }} />
                 <Tooltip />
                 <Bar dataKey="count" fill="#2563EB" radius={[6, 6, 0, 0]} name="Detections" />
               </BarChart>
@@ -166,21 +166,21 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Severity Distribution (Donut Chart) */}
-        <div className="lg:col-span-1 bg-white rounded-2xl p-5 border border-[#E4E7EC] shadow-sm flex flex-col justify-between">
+        <div className="lg:col-span-1 bg-white rounded-2xl p-4 sm:p-5 border border-[#E4E7EC] shadow-sm flex flex-col justify-between">
           <div className="pb-3 border-b border-slate-100 mb-2">
             <h3 className="font-bold text-slate-900 text-sm">Severity Distribution</h3>
-            <p className="text-xs text-slate-500">Proportion of High vs Medium vs Low hazard levels</p>
+            <p className="text-[11px] sm:text-xs text-slate-500">Proportion of High vs Medium vs Low hazard levels</p>
           </div>
 
-          <div className="h-52 w-full">
+          <div className="h-48 sm:h-52 w-full min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={severityData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={50}
-                  outerRadius={75}
+                  innerRadius={45}
+                  outerRadius={70}
                   paddingAngle={4}
                   dataKey="value"
                 >
@@ -189,32 +189,32 @@ export default function AnalyticsPage() {
                   ))}
                 </Pie>
                 <Tooltip />
-                <Legend />
+                <Legend wrapperStyle={{ fontSize: '11px' }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
 
-          <div className="text-[11px] text-slate-500 text-center pt-2 border-t border-slate-100">
-            Red: High (requires urgent patch) · Orange: Medium · Yellow: Low
+          <div className="text-[10px] sm:text-[11px] text-slate-500 text-center pt-2 border-t border-slate-100">
+            Red: High (urgent patch) · Orange: Med · Yellow: Low
           </div>
         </div>
       </div>
 
       {/* 7-Day Inspection Activity & Repair Progress Trend */}
-      <div className="bg-white rounded-2xl p-5 border border-[#E4E7EC] shadow-sm">
-        <div className="pb-3 border-b border-slate-100 mb-4 flex items-center justify-between">
+      <div className="bg-white rounded-2xl p-4 sm:p-5 border border-[#E4E7EC] shadow-sm">
+        <div className="pb-3 border-b border-slate-100 mb-3 sm:mb-4 flex items-center justify-between">
           <div>
             <h3 className="font-bold text-slate-900 text-sm">7-Day Inspection vs Repair Dispatch Trends</h3>
-            <p className="text-xs text-slate-500">Track incoming detections alongside completed road repairs</p>
+            <p className="text-[11px] sm:text-xs text-slate-500">Track incoming detections alongside completed road repairs</p>
           </div>
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700">
+          <span className="text-[10px] sm:text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700">
             Current Week
           </span>
         </div>
 
-        <div className="h-72 w-full">
+        <div className="h-60 sm:h-72 w-full min-w-0">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={trendData} margin={{ top: 10, right: 20, left: -10, bottom: 0 }}>
+            <AreaChart data={trendData} margin={{ top: 10, right: 15, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorPotholes" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#DC2626" stopOpacity={0.4} />
@@ -230,10 +230,10 @@ export default function AnalyticsPage() {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="day" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 12 }} />
+              <XAxis dataKey="day" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
-              <Legend />
+              <Legend wrapperStyle={{ fontSize: '11px' }} />
               <Area type="monotone" dataKey="potholes" stroke="#DC2626" fillOpacity={1} fill="url(#colorPotholes)" name="Potholes Found" />
               <Area type="monotone" dataKey="cracks" stroke="#F97316" fillOpacity={1} fill="url(#colorCracks)" name="Cracks Detected" />
               <Area type="monotone" dataKey="repaired" stroke="#16A34A" fillOpacity={1} fill="url(#colorRepaired)" name="Repaired by Crews" />

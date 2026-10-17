@@ -4,6 +4,7 @@ import {
   Square,
   Pause,
   Camera,
+  CameraOff,
   RefreshCw,
   AlertTriangle,
   CheckCircle,
@@ -20,7 +21,7 @@ import { api } from '../services/api';
 
 export default function LiveInspectionPage({
   dashboard,
-  vehicles,
+  vehicles = [],
   onNewDetection,
 }) {
   const [sourceMode, setSourceMode] = useState('webcam'); // 'webcam' | 'simulated'
@@ -29,6 +30,10 @@ export default function LiveInspectionPage({
   const [selectedVehicle, setSelectedVehicle] = useState('RV-1001');
   const [sessionId, setSessionId] = useState('live-inspection-01');
   const [intervalMs, setIntervalMs] = useState(1200);
+
+  // Camera availability state
+  const [cameraError, setCameraError] = useState(null);
+  const [isCameraActive, setIsCameraActive] = useState(false);
 
   // Telemetry
   const [secondsElapsed, setSecondsElapsed] = useState(0);
@@ -75,26 +80,49 @@ export default function LiveInspectionPage({
   }, [isInspecting, isPaused]);
 
   // Handle Webcam Start / Stop
+  const startWebcam = () => {
+    setCameraError(null);
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setCameraError('Camera API is not supported in this browser or context.');
+      setIsCameraActive(false);
+      return;
+    }
+
+    navigator.mediaDevices
+      .getUserMedia({
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: 'environment', // dashcam / rear preferred on phones
+        },
+      })
+      .then((stream) => {
+        streamRef.current = stream;
+        setIsCameraActive(true);
+        setCameraError(null);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(() => {});
+        }
+      })
+      .catch((err) => {
+        console.warn('Webcam access error:', err.message);
+        setCameraError(err.message || 'Camera access denied or unavailable.');
+        setIsCameraActive(false);
+      });
+  };
+
   useEffect(() => {
     if (sourceMode === 'webcam') {
-      navigator.mediaDevices
-        ?.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 } } })
-        .then((stream) => {
-          streamRef.current = stream;
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            videoRef.current.play().catch(() => {});
-          }
-        })
-        .catch((err) => {
-          console.warn('Webcam access error:', err.message);
-        });
+      startWebcam();
     } else {
       // Clean up webcam if switched to simulated
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
       }
+      setIsCameraActive(false);
+      setCameraError(null);
     }
 
     return () => {
@@ -143,7 +171,7 @@ export default function LiveInspectionPage({
       const offCtx = offscreen.getContext('2d');
       offCtx.drawImage(video, 0, 0, offscreen.width, offscreen.height);
       base64Frame = offscreen.toDataURL('image/jpeg', 0.6);
-    } else {
+    } else if (sourceMode === 'simulated') {
       // Simulated feed: use the sample dashcam frame
       const simImg = document.getElementById('simulated-dashcam-img');
       if (simImg) {
@@ -286,25 +314,26 @@ export default function LiveInspectionPage({
   };
 
   return (
-    <div className="space-y-6">
-      {/* Top Controls Strip */}
+    <div className="space-y-5 sm:space-y-6">
+      {/* Top Controls Strip: Responsive Toolbar */}
       <div className="bg-white rounded-2xl p-3.5 sm:p-4 border border-[#E4E7EC] shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 sm:gap-4">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 sm:gap-3">
           <div className="p-2 sm:p-2.5 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 shrink-0">
-            <Camera size={22} />
+            <Camera size={20} className="sm:w-5 sm:h-5" />
           </div>
-          <div>
-            <h2 className="text-sm sm:text-base font-bold text-slate-900">Vehicle Camera Detection Station</h2>
-            <p className="text-[11px] sm:text-xs text-slate-500">Live AI inference with spatial duplicate filtering</p>
+          <div className="min-w-0">
+            <h2 className="text-xs min-[360px]:text-sm sm:text-base font-bold text-slate-900 truncate">Vehicle Camera Detection Station</h2>
+            <p className="text-[10px] sm:text-xs text-slate-500 truncate">Live AI inference with spatial duplicate filtering</p>
           </div>
         </div>
 
-        {/* Source Selector & Vehicle Selector */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs">
+        {/* Source Selector, Vehicle Selector & Inspection Controls */}
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 sm:gap-3 text-xs">
+          {/* Mode Switcher */}
           <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-1 w-full sm:w-auto">
             <button
               onClick={() => setSourceMode('webcam')}
-              className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-lg font-semibold transition text-center ${
+              className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-lg font-semibold transition text-center min-h-[34px] sm:min-h-0 ${
                 sourceMode === 'webcam'
                   ? 'bg-white text-blue-600 shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
@@ -314,22 +343,23 @@ export default function LiveInspectionPage({
             </button>
             <button
               onClick={() => setSourceMode('simulated')}
-              className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-lg font-semibold transition text-center ${
+              className={`flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 rounded-lg font-semibold transition text-center min-h-[34px] sm:min-h-0 ${
                 sourceMode === 'simulated'
                   ? 'bg-white text-blue-600 shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Simulated Dashcam (Demo)
+              Simulated Feed (Demo)
             </button>
           </div>
 
-          <div className="flex items-center gap-2 flex-1 sm:flex-initial justify-between sm:justify-start">
-            <span className="text-slate-500 font-medium">Vehicle:</span>
+          {/* Vehicle Dropdown */}
+          <div className="flex items-center gap-2 justify-between sm:justify-start">
+            <span className="text-slate-500 font-medium shrink-0">Vehicle:</span>
             <select
               value={selectedVehicle}
               onChange={(e) => setSelectedVehicle(e.target.value)}
-              className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white font-medium text-slate-800 flex-1 sm:flex-initial"
+              className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white font-medium text-slate-800 flex-1 sm:flex-initial min-h-[36px]"
             >
               {vehicles?.map((v) => (
                 <option key={v.vehicle_id} value={v.vehicle_id}>
@@ -343,7 +373,7 @@ export default function LiveInspectionPage({
           {!isInspecting ? (
             <button
               onClick={startInspection}
-              className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition shadow-sm w-full sm:w-auto min-h-[36px]"
+              className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition shadow-sm w-full sm:w-auto min-h-[40px] sm:min-h-[36px]"
             >
               <Play size={16} />
               <span>Start Inspection</span>
@@ -352,14 +382,14 @@ export default function LiveInspectionPage({
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <button
                 onClick={togglePause}
-                className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold transition min-h-[36px]"
+                className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold transition min-h-[40px] sm:min-h-[36px]"
               >
                 {isPaused ? <Play size={15} /> : <Pause size={15} />}
                 <span>{isPaused ? 'Resume' : 'Pause'}</span>
               </button>
               <button
                 onClick={stopInspection}
-                className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold transition min-h-[36px]"
+                className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold transition min-h-[40px] sm:min-h-[36px]"
               >
                 <Square size={15} />
                 <span>Stop & Save</span>
@@ -370,23 +400,52 @@ export default function LiveInspectionPage({
       </div>
 
       {/* Main Screen: Video Stream on Left, Live Detection History on Right */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6">
         {/* Left: Video & Bounding Boxes Canvas */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="relative rounded-2xl overflow-hidden bg-slate-950 aspect-video shadow-lg border border-slate-800">
+        <div className="lg:col-span-2 space-y-3 sm:space-y-4">
+          <div className="relative rounded-2xl overflow-hidden bg-slate-950 aspect-video shadow-lg border border-slate-800 flex items-center justify-center">
             {sourceMode === 'webcam' ? (
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover"
-              />
+              cameraError ? (
+                /* Responsive Empty State when Webcam is Unavailable / Denied */
+                <div className="p-6 text-center text-slate-300 space-y-3 max-w-sm">
+                  <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center mx-auto text-amber-400">
+                    <CameraOff size={24} />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-white">Camera Unavailable</h4>
+                    <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                      {cameraError || 'Webcam permission was denied or no device was detected.'}
+                    </p>
+                  </div>
+                  <div className="pt-2 flex flex-col xs:flex-row items-center justify-center gap-2">
+                    <button
+                      onClick={startWebcam}
+                      className="w-full xs:w-auto px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition"
+                    >
+                      Retry Camera
+                    </button>
+                    <button
+                      onClick={() => setSourceMode('simulated')}
+                      className="w-full xs:w-auto px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition"
+                    >
+                      Switch to Simulated Feed
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover"
+                />
+              )
             ) : (
               <img
                 id="simulated-dashcam-img"
                 src="/road_feed_sample.jpg"
-                alt="Simulated Dashcam"
+                alt="Simulated Dashcam Feed"
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   e.currentTarget.src = '/pothole_dashcam.jpg';
@@ -403,50 +462,50 @@ export default function LiveInspectionPage({
             />
 
             {/* Live Indicator Badges */}
-            <div className="absolute top-4 left-4 flex items-center gap-2">
+            <div className="absolute top-2.5 left-2.5 sm:top-4 sm:left-4 flex items-center gap-2">
               {isInspecting ? (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-red-600 text-white text-xs font-bold shadow-lg animate-pulse">
-                  <span className="w-2 h-2 rounded-full bg-white"></span>
+                <div className="flex items-center gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md bg-red-600 text-white text-[10px] sm:text-xs font-bold shadow-lg animate-pulse">
+                  <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-white"></span>
                   <span>RECORDING</span>
                 </div>
               ) : (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800/80 backdrop-blur text-slate-300 text-xs font-medium border border-white/10">
+                <div className="flex items-center gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md bg-slate-800/80 backdrop-blur text-slate-300 text-[10px] sm:text-xs font-medium border border-white/10">
                   <Radio size={12} />
                   <span>PREVIEW STANDBY</span>
                 </div>
               )}
 
               {sourceMode === 'simulated' && (
-                <div className="px-2.5 py-1 rounded-md bg-amber-500/90 text-slate-950 text-xs font-bold border border-amber-300">
+                <div className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md bg-amber-500/90 text-slate-950 text-[10px] sm:text-xs font-bold border border-amber-300">
                   DEMO / TEST FEED
                 </div>
               )}
             </div>
 
-            {/* Telemetry HUD on Bottom Left */}
-            <div className="absolute bottom-2 left-2 sm:bottom-4 sm:left-4 flex flex-wrap gap-1 sm:gap-2 text-[10px] sm:text-xs font-mono max-w-[calc(100%-105px)]">
-              <div className="px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded bg-slate-900/80 backdrop-blur border border-white/10 text-slate-200">
-                GPS: {liveCoords.lat.toFixed(4)}, {liveCoords.lng.toFixed(4)}
+            {/* Telemetry HUD on Bottom Left (Responsive max-width so it never collides) */}
+            <div className="absolute bottom-2 left-2 sm:bottom-3 sm:left-3 flex flex-wrap gap-1 sm:gap-1.5 text-[9px] min-[360px]:text-[10px] sm:text-xs font-mono max-w-[calc(100%-95px)] sm:max-w-[calc(100%-120px)]">
+              <div className="px-1.5 py-0.5 sm:px-2 sm:py-1 rounded bg-slate-900/80 backdrop-blur border border-white/10 text-slate-200 truncate">
+                GPS: {liveCoords.lat.toFixed(3)}, {liveCoords.lng.toFixed(3)}
               </div>
-              <div className="px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded bg-slate-900/80 backdrop-blur border border-white/10 text-slate-200">
-                SPD: {speedKmh} km/h
+              <div className="px-1.5 py-0.5 sm:px-2 sm:py-1 rounded bg-slate-900/80 backdrop-blur border border-white/10 text-slate-200">
+                {speedKmh} km/h
               </div>
-              <div className="px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded bg-slate-900/80 backdrop-blur border border-white/10 text-emerald-400">
-                TIME: {formatDuration(secondsElapsed)}
+              <div className="px-1.5 py-0.5 sm:px-2 sm:py-1 rounded bg-slate-900/80 backdrop-blur border border-white/10 text-emerald-400">
+                {formatDuration(secondsElapsed)}
               </div>
             </div>
 
-            {/* Detection count pill */}
-            <div className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 px-2 py-0.5 sm:px-3 sm:py-1 rounded-lg bg-blue-600/90 backdrop-blur text-white text-[10px] sm:text-xs font-bold border border-blue-400/30">
+            {/* Detection count pill on Bottom Right */}
+            <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-blue-600/90 backdrop-blur text-white text-[9px] min-[360px]:text-[10px] sm:text-xs font-bold border border-blue-400/30 shrink-0">
               Detections: {recentDetections.length}
             </div>
           </div>
 
           {/* Frame Interval & Severity Disclaimer */}
-          <div className="flex flex-wrap items-center justify-between text-xs text-slate-500 px-1">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-500 px-1 gap-2">
             <div className="flex items-center gap-2">
-              <Sliders size={14} />
-              <span>Inference Interval: {intervalMs}ms</span>
+              <Sliders size={14} className="shrink-0" />
+              <span className="text-[11px] sm:text-xs shrink-0">Inference Interval: {intervalMs}ms</span>
               <input
                 type="range"
                 min="500"
@@ -457,18 +516,18 @@ export default function LiveInspectionPage({
                 className="w-24 accent-blue-600"
               />
             </div>
-            <div className="italic text-[11px] text-slate-400">
+            <div className="italic text-[10px] sm:text-[11px] text-slate-400">
               * Note: Severity is an image-based estimate; pothole depth requires manual verification.
             </div>
           </div>
         </div>
 
-        {/* Right: Live Detection History & Review Queue */}
-        <div className="bg-white rounded-2xl p-5 border border-[#E4E7EC] shadow-sm flex flex-col h-[520px]">
+        {/* Right: Live Detection History & Review Queue (Stacks below video on narrow screens) */}
+        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-[#E4E7EC] shadow-sm flex flex-col h-80 sm:h-96 lg:h-[520px]">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <div>
               <h3 className="font-bold text-slate-900 text-sm">Detection Review Queue</h3>
-              <p className="text-xs text-slate-500">Incoming hazard detections</p>
+              <p className="text-[11px] sm:text-xs text-slate-500">Incoming hazard detections</p>
             </div>
             <span className="text-xs font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700">
               {recentDetections.length} items
@@ -477,8 +536,8 @@ export default function LiveInspectionPage({
 
           <div className="flex-1 overflow-y-auto divide-y divide-slate-100 py-2 scrollbar-thin">
             {recentDetections.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400">
-                <AlertTriangle size={32} className="opacity-30 mb-2" />
+              <div className="h-full flex flex-col items-center justify-center text-center p-4 sm:p-6 text-slate-400">
+                <AlertTriangle size={30} className="opacity-30 mb-2" />
                 <p className="text-xs font-medium text-slate-500">No detections recorded yet</p>
                 <p className="text-[11px] mt-1 text-slate-400">
                   Click 'Start Inspection' to begin analyzing video frames for potholes and cracks.
@@ -488,10 +547,10 @@ export default function LiveInspectionPage({
               recentDetections.map((det) => (
                 <div
                   key={det.id}
-                  className="py-3 flex items-start justify-between gap-3 hover:bg-slate-50/80 p-2 rounded-xl transition"
+                  className="py-2.5 sm:py-3 flex items-start justify-between gap-2.5 hover:bg-slate-50/80 p-2 rounded-xl transition"
                 >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-bold text-xs text-slate-900 capitalize truncate">
                         {det.category.replace('_', ' ')}
                       </span>
@@ -507,26 +566,28 @@ export default function LiveInspectionPage({
                         {det.severity}
                       </span>
                     </div>
-                    <div className="text-[11px] text-slate-500 mt-1">
+                    <div className="text-[10px] sm:text-[11px] text-slate-500 mt-1 truncate">
                       Conf: {(det.confidence * 100).toFixed(0)}% · {new Date(det.timestamp).toLocaleTimeString()}
                     </div>
                   </div>
 
                   {/* Actions: Verify / Reject */}
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 shrink-0">
                     {det.review_status === 'pending_review' ? (
                       <>
                         <button
                           onClick={() => handleReviewAction(det, 'verified')}
-                          className="p-1 rounded bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+                          className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 min-w-[28px] min-h-[28px] flex items-center justify-center"
                           title="Verify as genuine hazard"
+                          aria-label="Verify"
                         >
                           <Check size={14} />
                         </button>
                         <button
                           onClick={() => handleReviewAction(det, 'rejected')}
-                          className="p-1 rounded bg-rose-50 text-rose-600 hover:bg-rose-100"
+                          className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 min-w-[28px] min-h-[28px] flex items-center justify-center"
                           title="Reject false positive"
+                          aria-label="Reject"
                         >
                           <X size={14} />
                         </button>

@@ -367,7 +367,7 @@ export default function App() {
         />
       )}
 
-      <div className="min-h-screen bg-[#F5F7FB] text-[#111827] font-sans flex w-full overflow-x-hidden">
+      <div className="min-h-screen bg-[#F5F7FB] text-[#111827] font-sans flex w-full">
         {/* Responsive Sidebar (Fixed on Desktop, Sliding Drawer on Mobile) */}
         <Sidebar
           activeTab={activeTab}
@@ -399,27 +399,27 @@ export default function App() {
           />
 
           {/* Dynamic Page Views with Role Guards */}
-          <main className="flex-1 p-3.5 sm:p-5 md:p-6 max-w-7xl w-full mx-auto min-w-0">
+          <main className="flex-1 p-2.5 xs:p-3.5 sm:p-5 md:p-6 max-w-7xl w-full mx-auto min-w-0">
             {!isPermitted ? (
-              <div className="bg-white rounded-3xl p-6 sm:p-10 border border-slate-200 text-center max-w-lg mx-auto shadow-sm my-8 sm:my-12 space-y-4">
-                <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto border border-rose-100">
-                  <ShieldAlert size={28} />
+              <div className="bg-white rounded-3xl p-5 sm:p-10 border border-slate-200 text-center max-w-lg mx-auto shadow-sm my-6 sm:my-12 space-y-4">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto border border-rose-100">
+                  <ShieldAlert size={26} />
                 </div>
-                <h3 className="font-bold text-lg text-slate-900">Access Restricted</h3>
+                <h3 className="font-bold text-base sm:text-lg text-slate-900">Access Restricted</h3>
                 <p className="text-xs text-slate-500 leading-relaxed">
                   Your current account role (<strong className="text-slate-800">{user.role}</strong>) does not have permission to view or manage this module.
                 </p>
-                <div className="pt-2 flex justify-center gap-3">
+                <div className="pt-2 flex flex-col sm:flex-row justify-center gap-2.5 sm:gap-3">
                   <button
                     onClick={() => setActiveTab('overview')}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition"
+                    className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition min-h-[40px]"
                   >
                     <ArrowLeft size={14} />
                     <span>Return to Overview</span>
                   </button>
                   <button
                     onClick={() => handleRoleChange('Administrator')}
-                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition shadow-sm"
+                    className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition shadow-sm min-h-[40px]"
                   >
                     Switch to Administrator (Demo)
                   </button>

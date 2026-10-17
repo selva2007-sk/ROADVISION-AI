@@ -59,7 +59,7 @@ export default function Sidebar({
     },
     {
       id: 'vehicles',
-      label: 'Vehicle Management',
+      label: 'Vehicle Fleet',
       icon: Truck,
       roles: ['Administrator', 'Inspection Operator'],
     },
@@ -115,12 +115,12 @@ export default function Sidebar({
   const renderContent = (isMobileView = false) => (
     <div className="flex flex-col h-full overflow-hidden select-none">
       {/* Brand Header */}
-      <div className="flex items-center justify-between p-4 border-b border-[#1f2a3d] shrink-0">
-        <div className="flex items-center gap-3 overflow-hidden">
+      <div className="flex items-center justify-between p-3.5 sm:p-4 border-b border-[#1f2a3d] shrink-0">
+        <div className="flex items-center gap-2.5 sm:gap-3 overflow-hidden">
           <img
             src="/logo.png"
             alt="RoadVision AI"
-            className="w-10 h-10 rounded-xl object-contain shadow-md shadow-blue-500/20 bg-slate-900 border border-blue-500/30 p-0.5 shrink-0"
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl object-contain shadow-md shadow-blue-500/20 bg-slate-900 border border-blue-500/30 p-0.5 shrink-0"
             onError={(e) => {
               e.currentTarget.style.display = 'none';
             }}
@@ -128,10 +128,10 @@ export default function Sidebar({
           {(!collapsed || isMobileView) && (
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="font-bold text-base tracking-tight text-white">ROADVISION</span>
-                <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">AI</span>
+                <span className="font-bold text-sm sm:text-base tracking-tight text-white truncate">ROADVISION</span>
+                <span className="text-[10px] sm:text-xs font-semibold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 shrink-0">AI</span>
               </div>
-              <p className="text-[11px] text-slate-400 truncate">Intelligent Road Monitoring</p>
+              <p className="text-[10px] sm:text-[11px] text-slate-400 truncate">Intelligent Road Monitoring</p>
             </div>
           )}
         </div>
@@ -140,7 +140,7 @@ export default function Sidebar({
         {isMobileView ? (
           <button
             onClick={() => setMobileOpen(false)}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
+            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition min-w-[38px] min-h-[38px] flex items-center justify-center"
             aria-label="Close navigation drawer"
           >
             <X size={20} />
@@ -148,7 +148,7 @@ export default function Sidebar({
         ) : (
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition hidden md:block"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition hidden md:flex items-center justify-center"
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
@@ -161,14 +161,14 @@ export default function Sidebar({
       {(!collapsed || isMobileView) && (
         <div className="px-4 py-2 border-b border-[#1f2a3d] bg-slate-950/40 flex items-center justify-between text-xs shrink-0">
           <span className="text-slate-400 font-medium">Role:</span>
-          <span className="font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/20 truncate max-w-[140px]">
+          <span className="font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/20 truncate max-w-[130px]">
             {userRole}
           </span>
         </div>
       )}
 
       {/* Navigation List */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1.5 scrollbar-thin">
+      <nav className="flex-1 overflow-y-auto px-2.5 sm:px-3 py-3 sm:py-4 space-y-1 sm:space-y-1.5 scrollbar-thin">
         {permittedItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -177,14 +177,14 @@ export default function Sidebar({
               key={item.id}
               onClick={() => handleNavClick(item.id)}
               title={collapsed && !isMobileView ? item.label : undefined}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 group min-h-[44px] ${
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-xs sm:text-sm transition-all duration-200 group min-h-[44px] ${
                 isActive
                   ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/30'
                   : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
               } ${collapsed && !isMobileView ? 'justify-center' : ''}`}
             >
               <Icon
-                size={20}
+                size={19}
                 className={`shrink-0 transition-transform ${
                   isActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-400'
                 }`}
@@ -206,13 +206,13 @@ export default function Sidebar({
 
       {/* Demo Mode Notice */}
       {(!collapsed || isMobileView) ? (
-        <div className="mx-3 mb-3 p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs shrink-0">
+        <div className="mx-3 mb-2 sm:mb-3 p-2.5 sm:p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs shrink-0">
           <div className="flex items-center gap-2 text-amber-400 font-semibold mb-1">
-            <ShieldAlert size={15} className="shrink-0" />
-            <span>AI Demo Prototype</span>
+            <ShieldAlert size={14} className="shrink-0" />
+            <span className="text-[11px] sm:text-xs">AI Demo Prototype</span>
           </div>
-          <p className="text-slate-300 text-[11px] leading-relaxed">
-            Operating in labeled heuristic mode. Detects potholes & cracks from camera frames.
+          <p className="text-slate-300 text-[10px] sm:text-[11px] leading-relaxed">
+            Heuristic detection core active. Analyzes camera frames for road faults.
           </p>
         </div>
       ) : (
@@ -224,11 +224,11 @@ export default function Sidebar({
       )}
 
       {/* Bottom Footer Section */}
-      <div className="p-3 border-t border-[#1f2a3d] space-y-1 shrink-0">
+      <div className="p-2.5 sm:p-3 border-t border-[#1f2a3d] space-y-1 shrink-0">
         {/* User Profile Navigation Link */}
         <button
           onClick={() => handleNavClick('profile')}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition min-h-[44px] ${
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition min-h-[44px] ${
             activeTab === 'profile'
               ? 'bg-blue-600 text-white'
               : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
@@ -242,7 +242,7 @@ export default function Sidebar({
         {userRole === 'Administrator' && (
           <button
             onClick={() => handleNavClick('settings')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition min-h-[44px] ${
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition min-h-[44px] ${
               activeTab === 'settings'
                 ? 'bg-blue-600 text-white'
                 : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
@@ -264,6 +264,7 @@ export default function Sidebar({
         className={`hidden md:flex fixed top-0 bottom-0 left-0 z-30 flex-col bg-[#101828] text-white transition-all duration-300 border-r border-[#1e293b] ${
           collapsed ? 'w-20' : 'w-64'
         }`}
+        aria-label="Desktop Navigation"
       >
         {renderContent(false)}
       </aside>
@@ -285,6 +286,9 @@ export default function Sidebar({
 
         {/* Sliding Drawer */}
         <aside
+          role="dialog"
+          aria-modal="true"
+          aria-label="Main Navigation"
           className={`absolute top-0 bottom-0 left-0 w-72 max-w-[85vw] bg-[#101828] text-white shadow-2xl border-r border-[#1e293b] flex flex-col transition-transform duration-300 ease-in-out ${
             mobileOpen ? 'translate-x-0' : '-translate-x-full'
           }`}

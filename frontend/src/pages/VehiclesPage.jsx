@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Truck,
   Plus,
@@ -21,6 +21,17 @@ export default function VehiclesPage({
   const [vehicleType, setVehicleType] = useState('Inspection SUV');
   const [regId, setRegId] = useState('');
   const [assignedCam, setAssignedCam] = useState('Front 4K Wide-Angle');
+
+  // Close modal on Escape key
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        setShowAddModal(false);
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleAddSubmit = async (e) => {
     e.preventDefault();
@@ -56,22 +67,22 @@ export default function VehiclesPage({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       {/* Top Banner with Fleet Image & Add Vehicle Button */}
-      <div className="bg-white rounded-2xl p-6 border border-[#E4E7EC] shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden">
+      <div className="bg-white rounded-2xl p-4 sm:p-6 border border-[#E4E7EC] shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 sm:gap-6 overflow-hidden">
         <div className="space-y-2">
           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold">
             <Truck size={14} />
             <span>Inspection Fleet Management</span>
           </div>
-          <h2 className="text-xl font-bold text-slate-900">Registered Road Inspection Units</h2>
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900">Registered Road Inspection Units</h2>
           <p className="text-xs text-slate-500 max-w-xl leading-relaxed">
             Manage your fleet of road survey vehicles equipped with high-resolution dashcams, RTK-GPS receivers, and edge AI compute units.
           </p>
           <div className="pt-2">
             <button
               onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition shadow-sm"
+              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition shadow-sm w-full sm:w-auto min-h-[40px]"
             >
               <Plus size={16} />
               <span>Register New Vehicle</span>
@@ -89,25 +100,25 @@ export default function VehiclesPage({
         </div>
       </div>
 
-      {/* Vehicles Grid Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      {/* Vehicles Grid Cards (Responsive Bootstrap-Style: 1 col mobile, 2 col tablet, 3 col desktop) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
         {vehicles.map((v) => (
           <div
             key={v.id || v.vehicle_id}
-            className="bg-white rounded-2xl border border-[#E4E7EC] p-5 shadow-sm hover:shadow-md transition space-y-4"
+            className="bg-white rounded-2xl border border-[#E4E7EC] p-4 sm:p-5 shadow-sm hover:shadow-md transition space-y-3 sm:space-y-4"
           >
             <div className="flex items-start justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm border border-blue-100">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm border border-blue-100 shrink-0">
                   <Truck size={20} />
                 </div>
-                <div>
-                  <h3 className="font-bold text-slate-900 text-sm">{v.vehicle_id}</h3>
-                  <p className="text-xs text-slate-500">{v.vehicle_type}</p>
+                <div className="min-w-0">
+                  <h3 className="font-bold text-slate-900 text-sm truncate">{v.vehicle_id}</h3>
+                  <p className="text-xs text-slate-500 truncate">{v.vehicle_type}</p>
                 </div>
               </div>
 
-              <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span className="flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                 {v.gps_status || 'Connected'}
               </span>
@@ -119,14 +130,14 @@ export default function VehiclesPage({
                 <span className="font-semibold text-slate-800">{v.registration_id || 'KA-01-EXP-9921'}</span>
               </div>
               <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50">
-                <span className="text-slate-400 flex items-center gap-1">
-                  <Camera size={13} /> Camera Sensor:
+                <span className="text-slate-400 flex items-center gap-1 truncate">
+                  <Camera size={13} className="shrink-0" /> Camera:
                 </span>
-                <span className="font-semibold text-slate-800">{v.assigned_camera || 'Integrated USB HD'}</span>
+                <span className="font-semibold text-slate-800 truncate max-w-[150px]">{v.assigned_camera || 'Integrated USB HD'}</span>
               </div>
               <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50">
                 <span className="text-slate-400 flex items-center gap-1">
-                  <Calendar size={13} /> Last Inspected:
+                  <Calendar size={13} className="shrink-0" /> Last Inspected:
                 </span>
                 <span className="font-semibold text-slate-800">
                   {v.last_inspection_date ? new Date(v.last_inspection_date).toLocaleDateString() : 'Today'}
@@ -135,10 +146,10 @@ export default function VehiclesPage({
             </div>
 
             <div className="pt-2 flex items-center justify-between text-xs text-slate-500">
-              <span className="flex items-center gap-1 text-emerald-600 font-medium">
-                <ShieldCheck size={14} /> Ready for Deployment
+              <span className="flex items-center gap-1 text-emerald-600 font-medium text-[11px]">
+                <ShieldCheck size={14} className="shrink-0" /> Ready for Deployment
               </span>
-              <span className="text-blue-600 font-semibold cursor-pointer hover:underline">
+              <span className="text-blue-600 font-semibold cursor-pointer hover:underline text-[11px]">
                 View Runs
               </span>
             </div>
@@ -146,19 +157,24 @@ export default function VehiclesPage({
         ))}
       </div>
 
-      {/* Add Vehicle Modal */}
+      {/* Add Vehicle Modal: Viewport-Safe with Backdrop & Escape Dismissal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div
+          onClick={() => setShowAddModal(false)}
+          className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4"
+        >
           <form
             onSubmit={handleAddSubmit}
-            className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl max-w-md w-full max-h-[92vh] overflow-y-auto p-5 sm:p-6 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95 duration-150"
           >
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-slate-900 text-base">Register Inspection Vehicle</h3>
+              <h3 className="font-bold text-slate-900 text-sm sm:text-base">Register Inspection Vehicle</h3>
               <button
                 type="button"
                 onClick={() => setShowAddModal(false)}
-                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400"
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700"
+                aria-label="Close dialog"
               >
                 <X size={18} />
               </button>
@@ -173,7 +189,7 @@ export default function VehiclesPage({
                   placeholder="e.g. RV-1050"
                   value={vehicleId}
                   onChange={(e) => setVehicleId(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-600"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-600 min-h-[40px]"
                 />
               </div>
 
@@ -182,7 +198,7 @@ export default function VehiclesPage({
                 <select
                   value={vehicleType}
                   onChange={(e) => setVehicleType(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 bg-white"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 bg-white min-h-[40px]"
                 >
                   <option value="Inspection SUV">Inspection SUV</option>
                   <option value="Survey Van">Survey Van</option>
@@ -198,7 +214,7 @@ export default function VehiclesPage({
                   placeholder="e.g. KA-04-AB-1234"
                   value={regId}
                   onChange={(e) => setRegId(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-600"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-600 min-h-[40px]"
                 />
               </div>
 
@@ -209,7 +225,7 @@ export default function VehiclesPage({
                   placeholder="e.g. Roof Dual HDR Sensor"
                   value={assignedCam}
                   onChange={(e) => setAssignedCam(e.target.value)}
-                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-600"
+                  className="w-full p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-600 min-h-[40px]"
                 />
               </div>
             </div>
@@ -218,13 +234,13 @@ export default function VehiclesPage({
               <button
                 type="button"
                 onClick={() => setShowAddModal(false)}
-                className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold text-xs"
+                className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold text-xs min-h-[38px]"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-sm transition"
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-sm transition min-h-[38px]"
               >
                 Register Unit
               </button>
