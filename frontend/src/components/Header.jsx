@@ -10,6 +10,8 @@ import {
   CheckCircle2,
   Menu,
   Activity,
+  X,
+  Info,
 } from 'lucide-react';
 import ProfileDropdown from './profile/ProfileDropdown';
 
@@ -26,6 +28,7 @@ export default function Header({
 }) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showStatusModal, setShowStatusModal] = useState(false);
   const notifyRef = useRef(null);
 
   useEffect(() => {
@@ -42,6 +45,18 @@ export default function Header({
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Close notifications on Escape key
+  useEffect(() => {
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        setShowNotifications(false);
+        setShowStatusModal(false);
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const notifications = [
@@ -94,14 +109,14 @@ export default function Header({
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-white border-b border-[#E4E7EC] px-3.5 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-3 shadow-sm">
+    <header className="sticky top-0 z-30 bg-white border-b border-[#E4E7EC] px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-2 sm:gap-3 shadow-sm select-none">
       {/* Left: Mobile Menu Toggle & Title */}
-      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-        {/* Hamburger Menu Toggle on Mobile */}
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+        {/* Hamburger Menu Toggle on Mobile (< md) */}
         <button
           onClick={onToggleMobileMenu}
           className="p-2 text-slate-700 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition border border-slate-200 md:hidden shrink-0 flex items-center justify-center min-w-[38px] min-h-[38px]"
-          aria-label="Open navigation menu"
+          aria-label="Toggle navigation drawer"
           title="Open menu"
         >
           <Menu size={18} />
@@ -111,9 +126,9 @@ export default function Header({
           <div className="hidden sm:flex items-center gap-1.5 text-xs font-medium text-slate-500 mb-0.5">
             <span>RoadVision AI</span>
             <span>/</span>
-            <span className="text-blue-600 font-semibold truncate">{breadcrumb || pageTitle}</span>
+            <span className="text-blue-600 font-semibold truncate capitalize">{breadcrumb || pageTitle}</span>
           </div>
-          <h1 className="text-sm sm:text-base md:text-lg font-bold text-slate-900 tracking-tight truncate max-w-[160px] xs:max-w-[220px] sm:max-w-none">
+          <h1 className="text-xs min-[360px]:text-sm sm:text-base md:text-lg font-bold text-slate-900 tracking-tight truncate max-w-[120px] min-[360px]:max-w-[160px] xs:max-w-[220px] sm:max-w-none">
             {pageTitle}
           </h1>
         </div>
@@ -145,6 +160,19 @@ export default function Header({
 
       {/* Right: Actions, Clock, Notifications & User Avatar */}
       <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+        {/* Mobile Status Info Pill (< lg) */}
+        <button
+          onClick={() => setShowStatusModal(true)}
+          className="p-1.5 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition border border-slate-200 lg:hidden flex items-center justify-center min-w-[34px] min-h-[34px]"
+          title="System Connection Status"
+          aria-label="View system status"
+        >
+          <div className="relative">
+            <Activity size={15} />
+            <span className={`absolute -top-1 -right-1 w-2 h-2 rounded-full ${systemStatus.backendConnected ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
+          </div>
+        </button>
+
         {/* Real-time Clock (Desktop only) */}
         <div className="hidden xl:block text-right pr-2 border-r border-slate-200">
           <div className="text-xs font-semibold text-slate-800">
@@ -159,20 +187,21 @@ export default function Header({
         <button
           onClick={onRefresh}
           disabled={refreshing}
-          className="p-2 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition border border-slate-200 min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0"
+          className="p-1.5 sm:p-2 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition border border-slate-200 min-w-[34px] min-h-[34px] sm:min-w-[36px] sm:min-h-[36px] flex items-center justify-center shrink-0"
           title="Refresh dashboard data"
           aria-label="Refresh data"
         >
           <RefreshCw size={15} className={refreshing ? 'animate-spin text-blue-600' : ''} />
         </button>
 
-        {/* Notifications Button & Dropdown */}
+        {/* Notifications Button & Responsive Dropdown */}
         <div className="relative" ref={notifyRef}>
           <button
             onClick={() => setShowNotifications(!showNotifications)}
-            className="p-2 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition border border-slate-200 relative min-w-[36px] min-h-[36px] flex items-center justify-center shrink-0"
+            className="p-1.5 sm:p-2 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition border border-slate-200 relative min-w-[34px] min-h-[34px] sm:min-w-[36px] sm:min-h-[36px] flex items-center justify-center shrink-0"
             title="Notifications"
             aria-label="View notifications"
+            aria-expanded={showNotifications}
           >
             <Bell size={15} />
             <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
@@ -180,12 +209,21 @@ export default function Header({
           </button>
 
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] max-w-xs sm:w-80 bg-white rounded-2xl shadow-xl border border-slate-200 z-50 overflow-hidden divide-y divide-slate-100 animate-in fade-in slide-in-from-top-2 duration-150">
+            <div className="fixed sm:absolute top-14 sm:top-full left-2 sm:left-auto right-2 sm:right-0 mt-1 sm:mt-2 w-auto sm:w-80 max-w-[calc(100vw-1rem)] bg-white rounded-2xl shadow-xl border border-slate-200 z-50 overflow-hidden divide-y divide-slate-100 animate-in fade-in slide-in-from-top-2 duration-150">
               <div className="p-3 bg-slate-50 flex items-center justify-between">
                 <span className="font-bold text-xs text-slate-900">System Road Alerts</span>
-                <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold">
-                  3 New
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold">
+                    3 New
+                  </span>
+                  <button
+                    onClick={() => setShowNotifications(false)}
+                    className="sm:hidden p-1 text-slate-400 hover:text-slate-700 rounded-lg"
+                    aria-label="Close notifications"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
               </div>
               <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
                 {notifications.map((n) => (
@@ -211,7 +249,7 @@ export default function Header({
                     onNavigate('reports');
                     setShowNotifications(false);
                   }}
-                  className="text-xs font-semibold text-blue-600 hover:underline"
+                  className="text-xs font-semibold text-blue-600 hover:underline min-h-[36px] flex items-center justify-center w-full"
                 >
                   View All Work Orders
                 </button>
@@ -227,6 +265,74 @@ export default function Header({
           onRoleChange={onRoleChange}
         />
       </div>
+
+      {/* Mobile System Status Modal (< lg screens) */}
+      {showStatusModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <Activity size={18} className="text-blue-600" />
+                <h3 className="font-bold text-sm text-slate-900">System Telemetry Status</h3>
+              </div>
+              <button
+                onClick={() => setShowStatusModal(false)}
+                className="p-1 rounded-lg hover:bg-slate-100 text-slate-400"
+                aria-label="Close dialog"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50">
+                <span className="flex items-center gap-2 text-slate-600">
+                  <Database size={15} /> Backend API Service
+                </span>
+                <span className={`font-bold px-2 py-0.5 rounded-full text-[11px] ${systemStatus.backendConnected ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                  {systemStatus.backendConnected ? 'Connected' : 'Offline'}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50">
+                <span className="flex items-center gap-2 text-slate-600">
+                  <Camera size={15} /> Dashcam Optical Feed
+                </span>
+                <span className="font-bold px-2 py-0.5 rounded-full text-[11px] bg-emerald-100 text-emerald-800">
+                  {systemStatus.cameraStatus || 'Connected'}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50">
+                <span className="flex items-center gap-2 text-slate-600">
+                  <Navigation size={15} /> RTK GPS Satellite Fix
+                </span>
+                <span className="font-bold px-2 py-0.5 rounded-full text-[11px] bg-emerald-100 text-emerald-800">
+                  {systemStatus.gpsStatus || 'GPS Available'}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50">
+                <span className="flex items-center gap-2 text-slate-600">
+                  <Cpu size={15} /> Neural Vision Core
+                </span>
+                <span className="font-bold px-2 py-0.5 rounded-full text-[11px] bg-blue-100 text-blue-800">
+                  {systemStatus.aiMode === 'production_yolo' ? 'YOLO Production' : 'Demo Heuristic'}
+                </span>
+              </div>
+            </div>
+
+            <div className="pt-2 text-center">
+              <button
+                onClick={() => setShowStatusModal(false)}
+                className="w-full py-2 rounded-xl bg-slate-900 text-white font-semibold text-xs hover:bg-slate-800 transition"
+              >
+                Close Status
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

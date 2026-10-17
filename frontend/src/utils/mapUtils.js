@@ -4,7 +4,7 @@ import { useMap } from 'react-leaflet';
 
 /**
  * Automatically calls Leaflet's invalidateSize() when container resizes,
- * sidebar toggles, or layout transitions finish.
+ * sidebar toggles, orientation changes, or layout transitions finish.
  */
 export function MapResizeHandler() {
   const map = useMap();
@@ -15,14 +15,30 @@ export function MapResizeHandler() {
     };
 
     window.addEventListener('resize', handleResize);
-    // Delayed invalidation for animation transitions
-    const timer = setTimeout(() => {
-      map.invalidateSize();
-    }, 300);
+    window.addEventListener('orientationchange', handleResize);
+
+    // Attach ResizeObserver to the map's DOM container for responsive sidebar/flex transitions
+    let resizeObserver = null;
+    const container = map.getContainer();
+    if (container && typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => {
+        map.invalidateSize();
+      });
+      resizeObserver.observe(container);
+    }
+
+    // Delayed invalidation for initial CSS animations & sidebar toggle
+    const timer1 = setTimeout(() => map.invalidateSize(), 150);
+    const timer2 = setTimeout(() => map.invalidateSize(), 400);
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      clearTimeout(timer);
+      window.removeEventListener('orientationchange', handleResize);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
+      clearTimeout(timer1);
+      clearTimeout(timer2);
     };
   }, [map]);
 
