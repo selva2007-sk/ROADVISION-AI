@@ -5,6 +5,12 @@ import math
 import os
 from datetime import datetime
 from pathlib import Path
+import sys
+
+# Ensure backend directory is in sys.path
+backend_dir = Path(__file__).resolve().parent
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
 
 from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
@@ -16,9 +22,15 @@ from config import settings
 from database import SessionLocal, init_db
 from models import CameraStatus, DetectionEvent, GPSPoint, InspectionSession, Report, UserProfile, Vehicle
 
+# Initialize database schema automatically on startup / serverless cold start
+try:
+    init_db()
+except Exception as _e:
+    print(f"[RoadVision Engine] Database initialization note: {_e}")
+
 app = Flask(__name__)
-# Enable CORS for all frontend requests
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+# Enable CORS for all frontend requests (both local and deployed cross-origin)
+CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], "allow_headers": ["Content-Type", "Authorization"]}})
 
 limiter = Limiter(
     key_func=get_remote_address,

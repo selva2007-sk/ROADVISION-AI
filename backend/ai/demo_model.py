@@ -6,8 +6,15 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-import cv2
+try:
+    import cv2
+except Exception as _e:
+    cv2 = None
+    print(f"[RoadDamageInferenceEngine] OpenCV not available, using Pillow fallback: {_e}")
+
 import numpy as np
+from PIL import Image
+import io
 
 
 class RoadDamageInferenceEngine:
@@ -54,14 +61,18 @@ class RoadDamageInferenceEngine:
         self.recent_detections: List[Dict[str, Any]] = []
 
     def decode_image(self, image_data: str) -> Optional[np.ndarray]:
-        """Decode base64 image data string into OpenCV BGR numpy array."""
+        """Decode base64 image data string into OpenCV BGR / RGB numpy array."""
         try:
             if ',' in image_data:
                 image_data = image_data.split(',', 1)[1]
             img_bytes = base64.b64decode(image_data)
-            nparr = np.frombuffer(img_bytes, np.uint8)
-            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-            return img
+            if cv2 is not None:
+                nparr = np.frombuffer(img_bytes, np.uint8)
+                img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                return img
+            else:
+                pil_img = Image.open(io.BytesIO(img_bytes)).convert('RGB')
+                return np.array(pil_img)
         except Exception as e:
             print(f"[RoadDamageInferenceEngine] Error decoding image: {e}")
             return None
@@ -145,29 +156,31 @@ class RoadDamageInferenceEngine:
         """Demo heuristic mode: uses OpenCV edge detection on the lower road ROI
         to detect realistic road irregularities and generate labeled demo detections.
         """
-        # Focus on the lower road section (bottom 60% of frame where road pavement lies)
-        road_roi = image[int(h * 0.4):h, :]
-        gray = cv2.cvtColor(road_roi, cv2.COLOR_BGR2GRAY)
-        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-        edges = cv2.Canny(blurred, 60, 180)
-
-        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        detections = []
-        # Filter for significant contours
         candidate_boxes = []
-        for c in contours:
-            area = cv2.contourArea(c)
-            if area > 400:
-                x, y, cw, ch = cv2.boundingRect(c)
-                # Map y back to full frame
-                full_y = int(h * 0.4) + y
-                candidate_boxes.append((x, full_y, cw, ch, area))
+        if cv2 is not None:
+            try:
+                # Focus on the lower road section (bottom 60% of frame where road pavement lies)
+                road_roi = image[int(h * 0.4):h, :]
+                gray = cv2.cvtColor(road_roi, cv2.COLOR_BGR2GRAY)
+                blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+                edges = cv2.Canny(blurred, 60, 180)
 
-        # Sort by contour area descending and take top 1 or 2
-        candidate_boxes.sort(key=lambda b: b[4], reverse=True)
+                contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        # Fallback if no strong contour found: simulate a realistic detection on the asphalt region
+                for c in contours:
+                    area = cv2.contourArea(c)
+                    if area > 400:
+                        x, y, cw, ch = cv2.boundingRect(c)
+                        # Map y back to full frame
+                        full_y = int(h * 0.4) + y
+                        candidate_boxes.append((x, full_y, cw, ch, area))
+
+                # Sort by contour area descending and take top 1 or 2
+                candidate_boxes.sort(key=lambda b: b[4], reverse=True)
+            except Exception as _cv_err:
+                print(f"[RoadDamageInferenceEngine] Heuristic contour error: {_cv_err}")
+
+        # Fallback if no strong contour found or OpenCV is not loaded
         if not candidate_boxes:
             candidate_boxes = [(int(w * 0.35), int(h * 0.55), int(w * 0.3), int(h * 0.22), 500)]
 

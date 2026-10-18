@@ -25,5 +25,15 @@ class Settings:
         db_dir = Path(self.database_path).parent
         db_dir.mkdir(parents=True, exist_ok=True)
 
+        # Pre-seed existing database on Vercel ephemeral storage if not already initialized
+        if is_vercel and not Path(self.database_path).exists():
+            seed_db = base_dir / 'data' / 'roadvision.db'
+            if seed_db.exists():
+                try:
+                    import shutil
+                    shutil.copy2(seed_db, self.database_path)
+                except Exception as e:
+                    print(f"[Settings] Could not copy initial DB: {e}")
+
 
 settings = Settings()
