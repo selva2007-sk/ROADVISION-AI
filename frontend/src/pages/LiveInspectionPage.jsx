@@ -38,9 +38,8 @@ export default function LiveInspectionPage({
   // Telemetry
   const [secondsElapsed, setSecondsElapsed] = useState(0);
   const [liveCoords, setLiveCoords] = useState({ lat: 12.9716, lng: 77.5946, accuracy: 3.2 });
-  const [speedKmh, setSpeedKmh] = useState(34);
+  const [speedKmh] = useState(34);
   const [recentDetections, setRecentDetections] = useState([]);
-  const [selectedReviewItem, setSelectedReviewItem] = useState(null);
 
   // Refs for video & canvas
   const videoRef = useRef(null);
@@ -131,17 +130,6 @@ export default function LiveInspectionPage({
       }
     };
   }, [sourceMode]);
-
-  // Frame processing loop during active inspection
-  useEffect(() => {
-    if (isInspecting && !isPaused) {
-      frameIntervalRef.current = setInterval(processFrame, intervalMs);
-    } else {
-      clearInterval(frameIntervalRef.current);
-      clearCanvas();
-    }
-    return () => clearInterval(frameIntervalRef.current);
-  }, [isInspecting, isPaused, intervalMs, sourceMode]);
 
   const clearCanvas = () => {
     const canvas = canvasRef.current;
@@ -258,6 +246,17 @@ export default function LiveInspectionPage({
       console.warn('Frame detection error:', err.message);
     }
   };
+
+  // Frame processing loop during active inspection
+  useEffect(() => {
+    if (isInspecting && !isPaused) {
+      frameIntervalRef.current = setInterval(processFrame, intervalMs);
+    } else {
+      clearInterval(frameIntervalRef.current);
+      clearCanvas();
+    }
+    return () => clearInterval(frameIntervalRef.current);
+  }, [isInspecting, isPaused, intervalMs, sourceMode]);
 
   const startInspection = () => {
     setIsInspecting(true);
