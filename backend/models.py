@@ -25,7 +25,13 @@ class Vehicle(Base):
     vehicle_type = Column(String(80), nullable=False)
     registration_id = Column(String(120), nullable=True)
     assigned_camera = Column(String(120), nullable=True)
-    gps_status = Column(String(40), default='Disconnected')
+    gps_status = Column(String(40), default='GPS Unavailable')
+    current_latitude = Column(Float, nullable=True)
+    current_longitude = Column(Float, nullable=True)
+    current_speed = Column(Float, nullable=True)
+    gps_accuracy = Column(Float, nullable=True)
+    gps_source = Column(String(50), default='browser')
+    last_location_update = Column(DateTime(timezone=True), nullable=True)
     last_inspection_date = Column(DateTime(timezone=True), nullable=True)
 
 
@@ -46,11 +52,14 @@ class GPSPoint(Base):
     __tablename__ = 'gps_points'
     id = Column(Integer, primary_key=True, autoincrement=True)
     session_id = Column(String(120), nullable=False)
+    vehicle_id = Column(String(120), nullable=True)
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
     speed = Column(Float, nullable=True)
     accuracy = Column(Float, nullable=True)
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
+    is_valid = Column(Boolean, default=True)
+    source = Column(String(50), default='browser')
 
 
 class DetectionEvent(Base):
@@ -58,6 +67,7 @@ class DetectionEvent(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     detection_id = Column(String(120), unique=True, nullable=False)
     session_id = Column(String(120), nullable=False)
+    vehicle_id = Column(String(120), nullable=True)
     category = Column(String(80), nullable=False)  # pothole, longitudinal_crack, transverse_crack, alligator_crack, damaged_surface
     confidence = Column(Float, nullable=False)
     severity = Column(String(40), nullable=False)  # Low, Medium, High
@@ -70,6 +80,8 @@ class DetectionEvent(Base):
     road_segment = Column(String(160), nullable=True)
     review_status = Column(String(40), default='pending_review')  # pending_review, verified, rejected
     source = Column(String(40), default='demo')  # real_yolo, demo_synthetic, demo_edge
+    is_location_reliable = Column(Boolean, default=True)
+    location_warning = Column(String(200), nullable=True)
 
 
 class Report(Base):

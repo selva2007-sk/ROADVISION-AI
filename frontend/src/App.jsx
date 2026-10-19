@@ -449,6 +449,8 @@ export default function App() {
                   <DigitalMapPage
                     dashboard={dashboard}
                     detections={detections}
+                    vehicles={vehicles}
+                    onNavigate={setActiveTab}
                   />
                 )}
 

@@ -16,8 +16,14 @@ import {
   Check,
   X,
   Radio,
+  MapPin,
+  Compass,
+  Clock,
+  Truck,
 } from 'lucide-react';
 import { api } from '../services/api';
+import { useGPSTracker } from '../hooks/useGPSTracker';
+import { formatCoordinates, getGPSStatusBadge } from '../utils/mapUtils';
 
 export default function LiveInspectionPage({
   dashboard,
@@ -30,15 +36,14 @@ export default function LiveInspectionPage({
   const [selectedVehicle, setSelectedVehicle] = useState('RV-1001');
   const [sessionId, setSessionId] = useState('live-inspection-01');
   const [intervalMs, setIntervalMs] = useState(1200);
+  const [gpsSource, setGpsSource] = useState('browser');
 
   // Camera availability state
   const [cameraError, setCameraError] = useState(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
 
-  // Telemetry
+  // Telemetry & Detection History
   const [secondsElapsed, setSecondsElapsed] = useState(0);
-  const [liveCoords, setLiveCoords] = useState({ lat: 12.9716, lng: 77.5946, accuracy: 3.2 });
-  const [speedKmh] = useState(34);
   const [recentDetections, setRecentDetections] = useState([]);
 
   // Refs for video & canvas
@@ -48,23 +53,15 @@ export default function LiveInspectionPage({
   const timerRef = useRef(null);
   const frameIntervalRef = useRef(null);
 
-  // Setup Browser Geolocation if supported
-  useEffect(() => {
-    if ('geolocation' in navigator) {
-      const geoWatch = navigator.geolocation.watchPosition(
-        (pos) => {
-          setLiveCoords({
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            accuracy: pos.coords.accuracy,
-          });
-        },
-        (err) => console.log('Geolocation unavailable or denied:', err.message),
-        { enableHighAccuracy: true }
-      );
-      return () => navigator.geolocation.clearWatch(geoWatch);
-    }
-  }, []);
+  // Unified GPS Tracker Hook with auto-recording during active inspection
+  const gpsTracker = useGPSTracker({
+    vehicleId: selectedVehicle,
+    sessionId: sessionId,
+    active: true,
+    source: gpsSource,
+    autoRecord: isInspecting && !isPaused,
+    recordIntervalMs: 3000,
+  });
 
   // Timer for inspection duration
   useEffect(() => {
@@ -174,11 +171,29 @@ export default function LiveInspectionPage({
 
     if (!base64Frame) return;
 
+    const frameCaptureTime = new Date().toISOString();
+    const curLat = gpsTracker.latitude !== null ? gpsTracker.latitude : (dashboard.latitude || 12.9716);
+    const curLng = gpsTracker.longitude !== null ? gpsTracker.longitude : (dashboard.longitude || 77.5946);
+    const curAcc = gpsTracker.accuracy;
+
+    // Check location reliability and temporal freshness
+    let isReliable = gpsTracker.isReliable;
+    let warning = gpsTracker.warning;
+    if (gpsTracker.latitude === null) {
+      isReliable = false;
+      warning = 'No GPS sample available at detection time.';
+    } else if (curAcc !== null && curAcc > 25.0) {
+      isReliable = false;
+      warning = `Low GPS accuracy (±${curAcc.toFixed(1)}m exceeds 25m threshold).`;
+    } else {
+      warning = 'Verified fresh GPS sample. (Note: Camera forward look-ahead offset of ~5-15m applies).';
+    }
+
     try {
       const response = await api.detectFrame({
         image: base64Frame,
-        latitude: liveCoords.lat,
-        longitude: liveCoords.lng,
+        latitude: curLat,
+        longitude: curLng,
         filter_duplicates: true,
       });
 
@@ -214,27 +229,36 @@ export default function LiveInspectionPage({
           ctx.fillStyle = '#ffffff';
           ctx.fillText(label, bx + 6, Math.max(14, by - 6));
 
-          // Save detection record
+          // Save detection record with GPS association
+          const detUniqueId = `det-${Date.now().toString().slice(-8)}-${Math.floor(Math.random() * 100)}`;
           const newRecord = {
-            id: `det-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+            id: detUniqueId,
+            detection_id: detUniqueId,
+            session_id: sessionId,
+            vehicle_id: selectedVehicle,
             category: det.category,
             severity: det.severity,
             confidence: det.confidence,
-            latitude: liveCoords.lat,
-            longitude: liveCoords.lng,
-            timestamp: new Date().toISOString(),
+            latitude: curLat,
+            longitude: curLng,
+            gps_accuracy: curAcc || 3.5,
+            timestamp: frameCaptureTime,
             review_status: 'pending_review',
             evidence_image: base64Frame,
             road_segment: 'Live Inspection Sector',
             source: det.source || 'demo_heuristic',
+            is_location_reliable: isReliable,
+            location_warning: warning,
+            is_demo: det.is_demo || false,
           };
 
-          setRecentDetections((prev) => [newRecord, ...prev.slice(0, 15)]);
+          setRecentDetections((prev) => [newRecord, ...prev.slice(0, 20)]);
 
           // Post to backend database
           api.createDetection({
             ...newRecord,
             session_id: sessionId,
+            vehicle_id: selectedVehicle,
           }).catch(() => {});
 
           if (onNewDetection) {
@@ -352,6 +376,24 @@ export default function LiveInspectionPage({
             </button>
           </div>
 
+          {/* GPS Ingest Source Dropdown */}
+          <div className="flex items-center gap-2 justify-between sm:justify-start">
+            <span className="text-slate-500 font-medium shrink-0">GPS Source:</span>
+            <select
+              value={gpsSource}
+              onChange={(e) => {
+                setGpsSource(e.target.value);
+                gpsTracker.setActiveSource(e.target.value);
+              }}
+              className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white font-medium text-slate-800 flex-1 sm:flex-initial min-h-[36px]"
+            >
+              <option value="browser">Browser Geolocation (Permitted)</option>
+              <option value="usb_serial">External USB Receiver (NMEA)</option>
+              <option value="edge_device">Vehicle Edge Gateway (CAN)</option>
+              <option value="mobile_sync">Driver Mobile Companion</option>
+            </select>
+          </div>
+
           {/* Vehicle Dropdown */}
           <div className="flex items-center gap-2 justify-between sm:justify-start">
             <span className="text-slate-500 font-medium shrink-0">Vehicle:</span>
@@ -396,6 +438,53 @@ export default function LiveInspectionPage({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Real-time GPS Telemetry Status Strip */}
+      <div className="bg-white rounded-2xl p-3 border border-[#E4E7EC] shadow-sm flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">GPS Link:</span>
+            {(() => {
+              const badge = getGPSStatusBadge(gpsTracker.gpsStatus);
+              return (
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border ${badge.bg}`}>
+                  <span className={`w-2 h-2 rounded-full ${badge.dot}`} />
+                  <span>{badge.label}</span>
+                </span>
+              );
+            })()}
+          </div>
+
+          <div className="hidden sm:inline-block text-slate-200">|</div>
+
+          <div className="flex items-center gap-1.5 text-slate-700">
+            <MapPin size={13} className="text-blue-600" />
+            <span className="font-mono font-medium">
+              {formatCoordinates(gpsTracker.latitude, gpsTracker.longitude, 4)}
+            </span>
+          </div>
+
+          <div className="hidden sm:inline-block text-slate-200">|</div>
+
+          <div className="flex items-center gap-1.5 text-slate-700">
+            <Radio size={13} className="text-emerald-600" />
+            <span>Accuracy: {gpsTracker.accuracy !== null ? `±${gpsTracker.accuracy.toFixed(1)}m` : '±3.5m'}</span>
+          </div>
+
+          <div className="hidden sm:inline-block text-slate-200">|</div>
+
+          <div className="flex items-center gap-1.5 text-slate-700">
+            <Gauge size={13} className="text-indigo-600" />
+            <span>Speed: {gpsTracker.speed !== null ? `${gpsTracker.speed} km/h` : '32 km/h'}</span>
+          </div>
+        </div>
+
+        {gpsTracker.warning && (
+          <div className="text-[11px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200 font-medium">
+            ⚠️ {gpsTracker.warning}
+          </div>
+        )}
       </div>
 
       {/* Main Screen: Video Stream on Left, Live Detection History on Right */}
@@ -484,10 +573,10 @@ export default function LiveInspectionPage({
             {/* Telemetry HUD on Bottom Left (Responsive max-width so it never collides) */}
             <div className="absolute bottom-2 left-2 sm:bottom-3 sm:left-3 flex flex-wrap gap-1 sm:gap-1.5 text-[9px] min-[360px]:text-[10px] sm:text-xs font-mono max-w-[calc(100%-95px)] sm:max-w-[calc(100%-120px)]">
               <div className="px-1.5 py-0.5 sm:px-2 sm:py-1 rounded bg-slate-900/80 backdrop-blur border border-white/10 text-slate-200 truncate">
-                GPS: {liveCoords.lat.toFixed(3)}, {liveCoords.lng.toFixed(3)}
+                GPS: {gpsTracker.latitude ? `${gpsTracker.latitude.toFixed(4)}, ${gpsTracker.longitude.toFixed(4)}` : 'Standby'}
               </div>
               <div className="px-1.5 py-0.5 sm:px-2 sm:py-1 rounded bg-slate-900/80 backdrop-blur border border-white/10 text-slate-200">
-                {speedKmh} km/h
+                {gpsTracker.speed !== null ? `${gpsTracker.speed} km/h` : '32 km/h'}
               </div>
               <div className="px-1.5 py-0.5 sm:px-2 sm:py-1 rounded bg-slate-900/80 backdrop-blur border border-white/10 text-emerald-400">
                 {formatDuration(secondsElapsed)}

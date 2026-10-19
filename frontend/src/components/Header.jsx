@@ -88,15 +88,18 @@ export default function Header({
     let badgeClass = 'bg-slate-100 text-slate-600 border-slate-200';
     let dotClass = 'bg-slate-400';
 
-    if (status === 'connected' || status === 'online' || status === 'Connected' || status === 'GPS Available') {
+    if (status === 'connected' || status === 'online' || status === 'Connected' || status === 'GPS Available' || status === 'GPS Connected') {
       badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
       dotClass = 'bg-emerald-500';
-    } else if (status === 'warning' || status === 'degraded' || status === 'demo') {
+    } else if (status === 'warning' || status === 'degraded' || status === 'demo' || status === 'GPS Signal Unreliable' || status === 'GPS Reconnecting') {
       badgeClass = 'bg-amber-50 text-amber-700 border-amber-200';
       dotClass = 'bg-amber-500';
-    } else if (status === 'disconnected' || status === 'offline' || status === 'error') {
+    } else if (status === 'disconnected' || status === 'offline' || status === 'error' || status === 'GPS Permission Denied') {
       badgeClass = 'bg-rose-50 text-rose-700 border-rose-200';
       dotClass = 'bg-rose-500';
+    } else if (status === 'GPS Unavailable') {
+      badgeClass = 'bg-slate-100 text-slate-600 border-slate-200';
+      dotClass = 'bg-slate-400';
     }
 
     return (

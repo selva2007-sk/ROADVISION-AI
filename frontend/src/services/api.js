@@ -61,9 +61,32 @@ export const api = {
   createReport: (data) => apiFetch('/reports', { method: 'POST', body: JSON.stringify(data) }),
   updateReport: (id, data) => apiFetch(`/reports/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
-  // GPS
-  getGPS: (sessionId) => apiFetch(`/gps${sessionId ? `?session_id=${sessionId}` : ''}`),
+  // GPS Telemetry & Tracking
+  getGPS: (sessionId, vehicleId) => {
+    const params = new URLSearchParams();
+    if (sessionId) params.append('session_id', sessionId);
+    if (vehicleId) params.append('vehicle_id', vehicleId);
+    const q = params.toString();
+    return apiFetch(`/gps${q ? `?${q}` : ''}`);
+  },
   recordGPS: (data) => apiFetch('/gps', { method: 'POST', body: JSON.stringify(data) }),
+  getGPSStatus: (vehicleId) => apiFetch(`/gps/status${vehicleId ? `?vehicle_id=${vehicleId}` : ''}`),
+  updateGPSStatus: (data) => apiFetch('/gps/status', { method: 'POST', body: JSON.stringify(data) }),
+  getGPSTracks: (sessionId, vehicleId) => {
+    const params = new URLSearchParams();
+    if (sessionId) params.append('session_id', sessionId);
+    if (vehicleId) params.append('vehicle_id', vehicleId);
+    const q = params.toString();
+    return apiFetch(`/gps/tracks${q ? `?${q}` : ''}`);
+  },
+  sendNMEA: (data) => apiFetch('/gps/nmea', { method: 'POST', body: JSON.stringify(data) }),
+
+  // Digital Road Map & Segments
+  getMapMarkers: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return apiFetch(`/map/markers${query ? `?${query}` : ''}`);
+  },
+  getMapSegments: (sessionId) => apiFetch(`/map/segments${sessionId ? `?session_id=${sessionId}` : ''}`),
 
   // Camera Status
   getCameraStatus: () => apiFetch('/camera-status'),

@@ -3,7 +3,7 @@ import io
 import json
 import math
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 import sys
 
@@ -21,6 +21,14 @@ from ai.demo_model import road_ai
 from config import settings
 from database import SessionLocal, init_db
 from models import CameraStatus, DetectionEvent, GPSPoint, InspectionSession, Report, UserProfile, Vehicle
+from gps_service import (
+    validate_coordinates,
+    determine_gps_state,
+    parse_nmea_sentence,
+    group_points_into_segments,
+    associate_ai_detection_with_gps,
+    haversine_distance_km,
+)
 
 # Initialize database schema automatically on startup / serverless cold start
 try:
@@ -234,18 +242,36 @@ def dashboard():
         high_priority = session.query(DetectionEvent).filter(DetectionEvent.severity == 'High').count()
         inspections = session.query(InspectionSession).count()
 
-        # Get latest active or completed session
-        active_session = session.query(InspectionSession).filter(
-            InspectionSession.status == 'recording'
-        ).order_by(InspectionSession.id.desc()).first()
+        # Get primary vehicle (RV-1001 or active)
+        active_veh = session.query(Vehicle).filter(Vehicle.gps_status.in_(['Connected', 'GPS Connected'])).first()
+        if not active_veh:
+            active_veh = session.query(Vehicle).first()
 
         latest_point = session.query(GPSPoint).order_by(GPSPoint.id.desc()).first()
         camera = session.query(CameraStatus).order_by(CameraStatus.id.desc()).first()
+
+        # Coordinates from active vehicle or latest point
+        current_lat = active_veh.current_latitude if (active_veh and active_veh.current_latitude) else (latest_point.latitude if latest_point else 12.9716)
+        current_lng = active_veh.current_longitude if (active_veh and active_veh.current_longitude) else (latest_point.longitude if latest_point else 77.5946)
+        current_speed = active_veh.current_speed if (active_veh and active_veh.current_speed is not None) else (latest_point.speed if latest_point else 32.0)
+        current_acc = active_veh.gps_accuracy if (active_veh and active_veh.gps_accuracy is not None) else (latest_point.accuracy if latest_point else 3.5)
+        last_update = active_veh.last_location_update if (active_veh and active_veh.last_location_update) else (latest_point.timestamp if latest_point else None)
+
+        gps_state, is_rel, gps_warn = determine_gps_state(
+            last_update=last_update,
+            accuracy=current_acc,
+            current_status=active_veh.gps_status if active_veh else None
+        )
+
+        active_session = session.query(InspectionSession).filter(
+            InspectionSession.status == 'recording'
+        ).order_by(InspectionSession.id.desc()).first()
 
         latest_records = session.query(DetectionEvent).order_by(DetectionEvent.id.desc()).limit(5).all()
         latest_events = [{
             'id': d.id,
             'detection_id': d.detection_id,
+            'vehicle_id': d.vehicle_id or (active_veh.vehicle_id if active_veh else 'RV-1001'),
             'category': d.category,
             'severity': d.severity,
             'confidence': d.confidence,
@@ -253,6 +279,8 @@ def dashboard():
             'latitude': d.latitude,
             'longitude': d.longitude,
             'review_status': d.review_status,
+            'is_location_reliable': d.is_location_reliable if d.is_location_reliable is not None else True,
+            'location_warning': d.location_warning,
         } for d in latest_records]
 
         # Calculate total distance inspected
@@ -260,17 +288,21 @@ def dashboard():
         total_distance = sum(s.distance_km or 0.0 for s in all_sessions)
 
         return jsonify({
-            'vehicle_status': 'Connected' if active_session else 'Standby',
+            'vehicle_id': active_veh.vehicle_id if active_veh else 'RV-1001',
+            'vehicle_status': 'Active Inspection' if active_session else 'Standby',
             'camera_status': camera.status if camera else 'Connected',
-            'gps_status': 'GPS Available' if latest_point else 'Connected',
-            'latitude': latest_point.latitude if latest_point else 12.9716,
-            'longitude': latest_point.longitude if latest_point else 77.5946,
-            'speed_kmh': latest_point.speed if latest_point and latest_point.speed is not None else 32.5,
-            'distance_km': round(total_distance, 1) if total_distance > 0 else 18.4,
-            'total_potholes': total_potholes if total_potholes > 0 else 8,
-            'total_cracks': total_cracks if total_cracks > 0 else 14,
+            'gps_status': gps_state,
+            'gps_accuracy': current_acc,
+            'gps_source': active_veh.gps_source if active_veh else 'browser',
+            'latitude': current_lat,
+            'longitude': current_lng,
+            'speed_kmh': current_speed,
+            'last_location_update': last_update.isoformat() if last_update else datetime.utcnow().isoformat(),
+            'distance_km': round(total_distance, 1) if total_distance > 0 else 24.6,
+            'total_potholes': total_potholes,
+            'total_cracks': total_cracks,
             'total_detections': total_detections,
-            'high_priority_damage': high_priority if high_priority > 0 else 5,
+            'high_priority_damage': high_priority,
             'session_duration': '00:45:10' if not active_session else '00:18:22',
             'latest_events': latest_events,
             'inspection_count': inspections,
@@ -289,24 +321,48 @@ def vehicles():
     try:
         if request.method == 'GET':
             rows = session.query(Vehicle).all()
-            return jsonify([{
-                'id': row.id,
-                'vehicle_id': row.vehicle_id,
-                'vehicle_type': row.vehicle_type,
-                'registration_id': row.registration_id,
-                'assigned_camera': row.assigned_camera,
-                'gps_status': row.gps_status,
-                'last_inspection_date': row.last_inspection_date.isoformat() if row.last_inspection_date else None,
-            } for row in rows])
+            result = []
+            for row in rows:
+                state, _, _ = determine_gps_state(
+                    last_update=row.last_location_update,
+                    accuracy=row.gps_accuracy,
+                    current_status=row.gps_status
+                )
+                result.append({
+                    'id': row.id,
+                    'vehicle_id': row.vehicle_id,
+                    'vehicle_type': row.vehicle_type,
+                    'registration_id': row.registration_id,
+                    'assigned_camera': row.assigned_camera,
+                    'gps_status': state,
+                    'current_latitude': row.current_latitude,
+                    'current_longitude': row.current_longitude,
+                    'current_speed': row.current_speed,
+                    'gps_accuracy': row.gps_accuracy,
+                    'gps_source': row.gps_source or 'browser',
+                    'last_location_update': row.last_location_update.isoformat() if row.last_location_update else None,
+                    'last_inspection_date': row.last_inspection_date.isoformat() if row.last_inspection_date else None,
+                })
+            return jsonify(result)
 
         body = request.get_json(silent=True) or {}
         vehicle_id = body.get('vehicle_id', f"RV-{datetime.utcnow().strftime('%S%f')[:4]}")
+        lat = body.get('current_latitude')
+        lng = body.get('current_longitude')
+        val, lat_f, lng_f, _ = validate_coordinates(lat, lng) if lat is not None else (True, None, None, None)
+
         row = Vehicle(
             vehicle_id=vehicle_id,
             vehicle_type=body.get('vehicle_type', 'Inspection SUV'),
             registration_id=body.get('registration_id', 'KA-01-EXP-9921'),
             assigned_camera=body.get('assigned_camera', 'Front Wide-Angle HD'),
-            gps_status=body.get('gps_status', 'Connected'),
+            gps_status=body.get('gps_status', 'GPS Unavailable'),
+            current_latitude=lat_f,
+            current_longitude=lng_f,
+            current_speed=float(body['current_speed']) if body.get('current_speed') is not None else 0.0,
+            gps_accuracy=float(body['gps_accuracy']) if body.get('gps_accuracy') is not None else None,
+            gps_source=body.get('gps_source', 'browser'),
+            last_location_update=datetime.utcnow() if lat_f else None,
             last_inspection_date=datetime.utcnow(),
         )
         session.add(row)
@@ -408,6 +464,10 @@ def detections():
             severity_filter = request.args.get('severity')
             status_filter = request.args.get('status')
             session_id_filter = request.args.get('session_id')
+            vehicle_id_filter = request.args.get('vehicle_id')
+            repair_status_filter = request.args.get('repair_status')
+            date_range_filter = request.args.get('date_range')
+            search_query = request.args.get('search')
 
             query = session.query(DetectionEvent)
             if category_filter and category_filter != 'all':
@@ -416,46 +476,139 @@ def detections():
                 query = query.filter(DetectionEvent.severity == severity_filter)
             if status_filter and status_filter != 'all':
                 query = query.filter(DetectionEvent.review_status == status_filter)
-            if session_id_filter:
+            if session_id_filter and session_id_filter != 'all':
                 query = query.filter(DetectionEvent.session_id == session_id_filter)
+            if vehicle_id_filter and vehicle_id_filter != 'all':
+                query = query.filter(DetectionEvent.vehicle_id == vehicle_id_filter)
+
+            if date_range_filter and date_range_filter != 'all':
+                now = datetime.utcnow()
+                if date_range_filter == 'today':
+                    start_of_day = datetime(now.year, now.month, now.day)
+                    query = query.filter(DetectionEvent.timestamp >= start_of_day)
+                elif date_range_filter == '7days':
+                    seven_days_ago = now - timedelta(days=7)
+                    query = query.filter(DetectionEvent.timestamp >= seven_days_ago)
+                elif date_range_filter == '30days':
+                    thirty_days_ago = now - timedelta(days=30)
+                    query = query.filter(DetectionEvent.timestamp >= thirty_days_ago)
+
+            if search_query and search_query.strip():
+                term = f"%{search_query.strip().lower()}%"
+                query = query.filter(
+                    (DetectionEvent.road_segment.ilike(term)) |
+                    (DetectionEvent.category.ilike(term)) |
+                    (DetectionEvent.detection_id.ilike(term))
+                )
 
             rows = query.order_by(DetectionEvent.id.desc()).all()
-            return jsonify([{
-                'id': row.id,
-                'detection_id': row.detection_id,
-                'session_id': row.session_id,
-                'category': row.category,
-                'confidence': row.confidence,
-                'severity': row.severity,
-                'latitude': row.latitude,
-                'longitude': row.longitude,
-                'gps_accuracy': row.gps_accuracy,
-                'bbox': row.bbox,
-                'road_segment': row.road_segment,
-                'evidence_image': row.evidence_image,
-                'timestamp': row.timestamp.isoformat() if row.timestamp else None,
-                'review_status': row.review_status,
-                'source': row.source,
-            } for row in rows])
+
+            # Pre-fetch reports for matching repair statuses
+            rep_map = {r.detection_id: r.status for r in session.query(Report).all()}
+
+            results = []
+            for row in rows:
+                rep_status = rep_map.get(row.detection_id, 'Detected')
+                if repair_status_filter and repair_status_filter != 'all' and rep_status != repair_status_filter:
+                    continue
+
+                results.append({
+                    'id': row.id,
+                    'detection_id': row.detection_id,
+                    'session_id': row.session_id,
+                    'vehicle_id': row.vehicle_id or 'RV-1001',
+                    'category': row.category,
+                    'confidence': row.confidence,
+                    'severity': row.severity,
+                    'latitude': row.latitude,
+                    'longitude': row.longitude,
+                    'gps_accuracy': row.gps_accuracy,
+                    'bbox': row.bbox,
+                    'road_segment': row.road_segment or 'City Sector Corridor',
+                    'evidence_image': row.evidence_image,
+                    'timestamp': row.timestamp.isoformat() if row.timestamp else None,
+                    'review_status': row.review_status,
+                    'repair_status': rep_status,
+                    'source': row.source,
+                    'is_demo': 'demo' in (row.source or '').lower(),
+                    'is_location_reliable': row.is_location_reliable if row.is_location_reliable is not None else True,
+                    'location_warning': row.location_warning,
+                })
+
+            return jsonify(results)
 
         body = request.get_json(silent=True) or {}
-        detection_id = body.get('detection_id', f"det-{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')[:17]}")
+        raw_lat = body.get('latitude')
+        raw_lng = body.get('longitude')
+        vehicle_id = body.get('vehicle_id', 'RV-1001')
         session_id = body.get('session_id', 'live-session')
+
+        # Coordinate validation
+        coord_valid, lat_f, lng_f, coord_err = validate_coordinates(raw_lat, raw_lng)
+
+        det_time = datetime.utcnow()
+        if body.get('timestamp'):
+            try:
+                det_time = datetime.fromisoformat(body['timestamp'].replace('Z', '+00:00'))
+            except Exception:
+                det_time = datetime.utcnow()
+
+        # Query latest GPS sample for vehicle/session for validation
+        latest_gps = session.query(GPSPoint).filter(
+            (GPSPoint.session_id == session_id) | (GPSPoint.vehicle_id == vehicle_id)
+        ).order_by(GPSPoint.id.desc()).first()
+
+        gps_data = None
+        if latest_gps:
+            gps_data = {
+                'latitude': latest_gps.latitude,
+                'longitude': latest_gps.longitude,
+                'accuracy': latest_gps.accuracy,
+                'timestamp': latest_gps.timestamp,
+            }
+
+        if coord_valid:
+            accuracy = float(body.get('gps_accuracy', 4.0)) if body.get('gps_accuracy') is not None else 4.0
+            is_reliable = accuracy <= 25.0
+            warning = None
+            if not is_reliable:
+                warning = f"Low GPS accuracy (±{accuracy:.1f}m exceeds 25m threshold)"
+            else:
+                warning = "Verified fresh GPS sample. (Note: Camera forward look-ahead offset of ~5-15m applies)."
+        elif gps_data:
+            assoc = associate_ai_detection_with_gps(det_time, gps_data)
+            lat_f = assoc['latitude']
+            lng_f = assoc['longitude']
+            accuracy = assoc['gps_accuracy']
+            is_reliable = assoc['is_location_reliable']
+            warning = assoc['location_warning']
+        else:
+            lat_f = 12.9716
+            lng_f = 77.5946
+            accuracy = None
+            is_reliable = False
+            warning = "No GPS fix available when damage was detected."
+
+        detection_id = body.get('detection_id', f"det-{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')[:17]}")
 
         row = DetectionEvent(
             detection_id=detection_id,
             session_id=session_id,
+            vehicle_id=vehicle_id,
             category=body.get('category', 'pothole'),
             confidence=float(body.get('confidence', 0.92)),
             severity=body.get('severity', 'High'),
-            latitude=float(body.get('latitude', 12.9716)),
-            longitude=float(body.get('longitude', 77.5946)),
-            gps_accuracy=float(body.get('gps_accuracy', 3.8)),
+            latitude=lat_f,
+            longitude=lng_f,
+            gps_accuracy=accuracy,
             bbox=json.dumps(body.get('bbox')) if body.get('bbox') else None,
             road_segment=body.get('road_segment', 'Outer Ring Rd - Sector 4'),
             evidence_image=body.get('evidence_image'),
             review_status=body.get('review_status', 'pending_review'),
             source=body.get('source', 'demo_heuristic'),
+            is_location_reliable=is_reliable,
+            location_warning=warning,
+            timestamp=det_time,
         )
         session.add(row)
 
@@ -477,7 +630,9 @@ def detections():
         return jsonify({
             'message': 'Detection registered',
             'id': row.id,
-            'detection_id': detection_id
+            'detection_id': detection_id,
+            'is_location_reliable': is_reliable,
+            'location_warning': warning,
         }), 201
     finally:
         session.close()
@@ -624,7 +779,7 @@ def report_detail(rep_id):
 
 
 # -----------------------------------------------------------------------------
-# GPS Tracking
+# GPS Tracking & Real-Time Telemetry
 # -----------------------------------------------------------------------------
 @app.route('/api/gps', methods=['GET', 'POST'])
 def gps():
@@ -632,57 +787,326 @@ def gps():
     try:
         if request.method == 'GET':
             session_id = request.args.get('session_id')
+            vehicle_id = request.args.get('vehicle_id')
+            limit = int(request.args.get('limit', 300))
+
             query = session.query(GPSPoint)
             if session_id:
                 query = query.filter(GPSPoint.session_id == session_id)
-            rows = query.order_by(GPSPoint.id.asc()).all()
+            if vehicle_id:
+                query = query.filter(GPSPoint.vehicle_id == vehicle_id)
+
+            rows = query.order_by(GPSPoint.id.asc()).limit(limit).all()
             return jsonify([{
                 'id': row.id,
                 'session_id': row.session_id,
+                'vehicle_id': row.vehicle_id,
                 'latitude': row.latitude,
                 'longitude': row.longitude,
                 'accuracy': row.accuracy,
                 'speed': row.speed,
+                'is_valid': row.is_valid,
+                'source': row.source,
                 'timestamp': row.timestamp.isoformat() if row.timestamp else None,
             } for row in rows])
 
         body = request.get_json(silent=True) or {}
-        lat = float(body.get('latitude', 12.9716))
-        lng = float(body.get('longitude', 77.5946))
-        accuracy = float(body.get('accuracy', 4.0)) if body.get('accuracy') is not None else None
+        raw_lat = body.get('latitude')
+        raw_lng = body.get('longitude')
+        raw_accuracy = body.get('accuracy')
+        raw_speed = body.get('speed')
         sess_id = body.get('session_id', 'live-session')
+        veh_id = body.get('vehicle_id', 'RV-1001')
+        source = body.get('source', 'browser')
+        status_override = body.get('status')
+
+        # Coordinate Validation
+        is_valid_coords, lat, lng, coord_err = validate_coordinates(raw_lat, raw_lng)
+        if not is_valid_coords:
+            return jsonify({'error': coord_err or 'Invalid coordinates', 'is_valid': False}), 400
+
+        accuracy = float(raw_accuracy) if raw_accuracy is not None else 4.0
+        speed = float(raw_speed) if raw_speed is not None else 0.0
+
+        # Sanity check accuracy and speed spikes
+        is_point_valid = True
+        warning = None
+        if accuracy > 25.0:
+            is_point_valid = False
+            warning = f"Horizontal accuracy ±{accuracy:.1f}m exceeds 25m threshold"
+        if speed > 160.0:
+            is_point_valid = False
+            warning = f"Speed spike {speed:.1f} km/h rejected"
 
         # Check for previous point to update distance traveled
-        prev_point = session.query(GPSPoint).filter(GPSPoint.session_id == sess_id).order_by(GPSPoint.id.desc()).first()
+        prev_point = session.query(GPSPoint).filter(
+            GPSPoint.session_id == sess_id,
+            GPSPoint.is_valid == True
+        ).order_by(GPSPoint.id.desc()).first()
+
         distance_delta_km = 0.0
-        if prev_point:
-            dlat = (lat - prev_point.latitude) * 111.0
-            dlng = (lng - prev_point.longitude) * 111.0 * math.cos(math.radians(lat))
-            dist_km = math.sqrt(dlat * dlat + dlng * dlng)
-            # Sanity filter against crazy jumps
-            if dist_km < 1.0:
+        now_dt = datetime.utcnow()
+        if body.get('timestamp'):
+            try:
+                now_dt = datetime.fromisoformat(body['timestamp'].replace('Z', '+00:00'))
+            except Exception:
+                now_dt = datetime.utcnow()
+
+        if prev_point and is_point_valid:
+            prev_ts = prev_point.timestamp
+            time_gap_seconds = abs((now_dt - prev_ts).total_seconds()) if prev_ts else 0.0
+            dist_km = haversine_distance_km(prev_point.latitude, prev_point.longitude, lat, lng)
+
+            # Avoid connecting across signal gap (>30s) or distance jump (>0.5 km)
+            if time_gap_seconds <= 30.0 and dist_km < 0.5:
                 distance_delta_km = dist_km
 
         row = GPSPoint(
             session_id=sess_id,
+            vehicle_id=veh_id,
             latitude=lat,
             longitude=lng,
-            speed=float(body.get('speed', 32.0)) if body.get('speed') is not None else 32.0,
+            speed=speed,
             accuracy=accuracy,
+            is_valid=is_point_valid,
+            source=source,
+            timestamp=now_dt,
         )
         session.add(row)
+
+        # Update vehicle real-time telemetry
+        veh_row = session.query(Vehicle).filter(Vehicle.vehicle_id == veh_id).first()
+        if not veh_row:
+            veh_row = Vehicle(
+                vehicle_id=veh_id,
+                vehicle_type='Inspection SUV',
+                registration_id='KA-01-EXP-9921',
+                assigned_camera='Front HDR 4K',
+            )
+            session.add(veh_row)
+
+        veh_row.current_latitude = lat
+        veh_row.current_longitude = lng
+        veh_row.current_speed = speed
+        veh_row.gps_accuracy = accuracy
+        veh_row.gps_source = source
+        veh_row.last_location_update = now_dt
+        veh_row.gps_status = status_override or ('GPS Signal Unreliable' if not is_point_valid else 'GPS Connected')
 
         if distance_delta_km > 0:
             sess_row = session.query(InspectionSession).filter(InspectionSession.session_id == sess_id).first()
             if sess_row:
-                sess_row.distance_km = round((sess_row.distance_km or 0.0) + distance_delta_km, 2)
+                sess_row.distance_km = round((sess_row.distance_km or 0.0) + distance_delta_km, 3)
 
         session.commit()
         return jsonify({
-            'message': 'GPS fix saved',
-            'reliable': accuracy is None or accuracy < 30.0,
-            'distance_delta_km': distance_delta_km,
+            'message': 'GPS telemetry fix saved',
+            'latitude': lat,
+            'longitude': lng,
+            'accuracy': accuracy,
+            'speed': speed,
+            'is_valid': is_point_valid,
+            'warning': warning,
+            'distance_delta_km': round(distance_delta_km, 4),
+            'gps_status': veh_row.gps_status,
         }), 201
+    finally:
+        session.close()
+
+
+@app.route('/api/gps/status', methods=['GET', 'POST'])
+def gps_status():
+    session = SessionLocal()
+    try:
+        if request.method == 'POST':
+            body = request.get_json(silent=True) or {}
+            veh_id = body.get('vehicle_id', 'RV-1001')
+            new_status = body.get('status', 'GPS Unavailable')
+            veh = session.query(Vehicle).filter(Vehicle.vehicle_id == veh_id).first()
+            if veh:
+                veh.gps_status = new_status
+                session.commit()
+            return jsonify({'message': 'GPS status updated', 'status': new_status})
+
+        vehicle_id = request.args.get('vehicle_id')
+        veh_query = session.query(Vehicle)
+        if vehicle_id:
+            veh = veh_query.filter(Vehicle.vehicle_id == vehicle_id).first()
+        else:
+            veh = veh_query.first()
+
+        latest_point = session.query(GPSPoint)
+        if vehicle_id:
+            latest_point = latest_point.filter(GPSPoint.vehicle_id == vehicle_id)
+        latest_point = latest_point.order_by(GPSPoint.id.desc()).first()
+
+        last_update = veh.last_location_update if (veh and veh.last_location_update) else (latest_point.timestamp if latest_point else None)
+        accuracy = veh.gps_accuracy if (veh and veh.gps_accuracy is not None) else (latest_point.accuracy if latest_point else None)
+
+        state, is_rel, warn = determine_gps_state(
+            last_update=last_update,
+            accuracy=accuracy,
+            current_status=veh.gps_status if veh else None
+        )
+
+        return jsonify({
+            'vehicle_id': veh.vehicle_id if veh else (vehicle_id or 'RV-1001'),
+            'status': state,
+            'is_reliable': is_rel,
+            'warning': warn,
+            'latitude': veh.current_latitude if (veh and veh.current_latitude) else (latest_point.latitude if latest_point else None),
+            'longitude': veh.current_longitude if (veh and veh.current_longitude) else (latest_point.longitude if latest_point else None),
+            'accuracy': accuracy,
+            'speed': veh.current_speed if (veh and veh.current_speed is not None) else (latest_point.speed if latest_point else None),
+            'source': veh.gps_source if veh else 'browser',
+            'last_update': last_update.isoformat() if last_update else None,
+            'supported_sources': [
+                {'id': 'browser', 'name': 'Browser Geolocation API', 'desc': 'Permitted prototype using device HTML5 Geolocation'},
+                {'id': 'usb_serial', 'name': 'External USB GPS Receiver', 'desc': 'Hardware NMEA-0183 serial stream (COM / USB)'},
+                {'id': 'edge_device', 'name': 'Vehicle Edge Device Gateway', 'desc': 'Vehicle CAN/GNSS onboard telematics service'},
+                {'id': 'mobile_sync', 'name': 'Paired Mobile Device Companion', 'desc': 'Mobile companion telemetry sync over REST/Socket'},
+            ],
+        })
+    finally:
+        session.close()
+
+
+@app.route('/api/gps/tracks', methods=['GET'])
+def gps_tracks():
+    session = SessionLocal()
+    try:
+        session_id = request.args.get('session_id')
+        vehicle_id = request.args.get('vehicle_id')
+
+        query = session.query(GPSPoint)
+        if session_id:
+            query = query.filter(GPSPoint.session_id == session_id)
+        if vehicle_id:
+            query = query.filter(GPSPoint.vehicle_id == vehicle_id)
+
+        rows = query.order_by(GPSPoint.id.asc()).all()
+        raw_points = [{
+            'id': r.id,
+            'latitude': r.latitude,
+            'longitude': r.longitude,
+            'accuracy': r.accuracy,
+            'speed': r.speed,
+            'is_valid': r.is_valid,
+            'timestamp': r.timestamp.isoformat() if r.timestamp else None,
+            'session_id': r.session_id,
+            'vehicle_id': r.vehicle_id,
+        } for r in rows]
+
+        segments, total_dist = group_points_into_segments(raw_points)
+
+        return jsonify({
+            'segments': segments,
+            'total_distance_km': total_dist,
+            'points_count': len(raw_points),
+            'session_id': session_id,
+            'vehicle_id': vehicle_id,
+        })
+    finally:
+        session.close()
+
+
+@app.route('/api/gps/nmea', methods=['POST'])
+def gps_nmea():
+    body = request.get_json(silent=True) or {}
+    sentence = body.get('sentence', '')
+    veh_id = body.get('vehicle_id', 'RV-1001')
+    sess_id = body.get('session_id', 'live-session')
+
+    parsed = parse_nmea_sentence(sentence)
+    if not parsed:
+        return jsonify({'error': 'Invalid or unsupported NMEA sentence'}), 400
+
+    if not parsed.get('is_valid'):
+        return jsonify({'message': 'NMEA parsed but no valid fix', 'details': parsed}), 200
+
+    session = SessionLocal()
+    try:
+        lat = parsed['latitude']
+        lng = parsed['longitude']
+        acc = parsed.get('accuracy', 3.5)
+        spd = parsed.get('speed', 0.0)
+
+        point = GPSPoint(
+            session_id=sess_id,
+            vehicle_id=veh_id,
+            latitude=lat,
+            longitude=lng,
+            accuracy=acc,
+            speed=spd,
+            is_valid=True,
+            source='usb_serial',
+            timestamp=datetime.utcnow(),
+        )
+        session.add(point)
+
+        veh = session.query(Vehicle).filter(Vehicle.vehicle_id == veh_id).first()
+        if veh:
+            veh.current_latitude = lat
+            veh.current_longitude = lng
+            veh.current_speed = spd
+            veh.gps_accuracy = acc
+            veh.gps_source = 'usb_serial'
+            veh.last_location_update = datetime.utcnow()
+            veh.gps_status = 'GPS Connected'
+
+        session.commit()
+        return jsonify({'message': 'NMEA telemetry stored', 'parsed': parsed}), 201
+    finally:
+        session.close()
+
+
+@app.route('/api/map/markers', methods=['GET'])
+def map_markers():
+    """Interactive Digital Road Map markers with full filtering."""
+    return detections()
+
+
+@app.route('/api/map/segments', methods=['GET'])
+def map_segments():
+    """Inspected Road Segments layer polyline data."""
+    session = SessionLocal()
+    try:
+        session_id = request.args.get('session_id')
+        sessions_query = session.query(InspectionSession)
+        if session_id:
+            sessions_query = sessions_query.filter(InspectionSession.session_id == session_id)
+
+        all_sessions = sessions_query.order_by(InspectionSession.id.desc()).all()
+        results = []
+
+        for sess_row in all_sessions:
+            pts = session.query(GPSPoint).filter(
+                GPSPoint.session_id == sess_row.session_id
+            ).order_by(GPSPoint.id.asc()).all()
+
+            raw_pts = [{
+                'latitude': p.latitude,
+                'longitude': p.longitude,
+                'accuracy': p.accuracy,
+                'is_valid': p.is_valid,
+                'timestamp': p.timestamp.isoformat() if p.timestamp else None,
+            } for p in pts]
+
+            segs, calc_dist = group_points_into_segments(raw_pts)
+            if segs:
+                results.append({
+                    'session_id': sess_row.session_id,
+                    'vehicle_id': sess_row.vehicle_id,
+                    'status': sess_row.status,
+                    'distance_km': sess_row.distance_km or calc_dist,
+                    'detections_count': sess_row.detections_count or 0,
+                    'notes': sess_row.notes,
+                    'start_time': sess_row.start_time.isoformat() if sess_row.start_time else None,
+                    'end_time': sess_row.end_time.isoformat() if sess_row.end_time else None,
+                    'segments': segs,
+                })
+
+        return jsonify(results)
     finally:
         session.close()
 
@@ -855,11 +1279,50 @@ def seed_demo_data():
             avatar_url='https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256',
         ))
 
-        # Seed Vehicles
+        # Seed Vehicles with real-time GPS telemetry
         vehicles_seed = [
-            Vehicle(vehicle_id='RV-1001', vehicle_type='Inspection SUV', registration_id='KA-01-BM-1234', assigned_camera='Front HDR 4K', gps_status='Connected', last_inspection_date=datetime.utcnow()),
-            Vehicle(vehicle_id='RV-1018', vehicle_type='Survey Van', registration_id='KA-03-TR-5678', assigned_camera='Dual USB Cam Rig', gps_status='Connected', last_inspection_date=datetime.utcnow()),
-            Vehicle(vehicle_id='RV-1042', vehicle_type='Utility Truck', registration_id='KA-05-MK-9012', assigned_camera='Front Dashcam Ultra', gps_status='Connected', last_inspection_date=datetime.utcnow()),
+            Vehicle(
+                vehicle_id='RV-1001',
+                vehicle_type='Inspection SUV',
+                registration_id='KA-01-BM-1234',
+                assigned_camera='Front HDR 4K',
+                gps_status='GPS Connected',
+                current_latitude=12.9790,
+                current_longitude=77.6048,
+                current_speed=34.0,
+                gps_accuracy=3.2,
+                gps_source='browser',
+                last_location_update=datetime.utcnow(),
+                last_inspection_date=datetime.utcnow(),
+            ),
+            Vehicle(
+                vehicle_id='RV-1018',
+                vehicle_type='Survey Van',
+                registration_id='KA-03-TR-5678',
+                assigned_camera='Dual USB Cam Rig',
+                gps_status='GPS Connected',
+                current_latitude=12.9725,
+                current_longitude=77.5954,
+                current_speed=28.5,
+                gps_accuracy=4.1,
+                gps_source='edge_device',
+                last_location_update=datetime.utcnow(),
+                last_inspection_date=datetime.utcnow(),
+            ),
+            Vehicle(
+                vehicle_id='RV-1042',
+                vehicle_type='Utility Truck',
+                registration_id='KA-05-MK-9012',
+                assigned_camera='Front Dashcam Ultra',
+                gps_status='GPS Connected',
+                current_latitude=12.9765,
+                current_longitude=77.6001,
+                current_speed=0.0,
+                gps_accuracy=4.8,
+                gps_source='usb_serial',
+                last_location_update=datetime.utcnow(),
+                last_inspection_date=datetime.utcnow(),
+            ),
         ]
         for v in vehicles_seed:
             session.add(v)
@@ -897,17 +1360,22 @@ def seed_demo_data():
         for lat, lng, spd in route_coords:
             session.add(GPSPoint(
                 session_id='session-blr-north-01',
+                vehicle_id='RV-1001',
                 latitude=lat,
                 longitude=lng,
                 speed=spd,
                 accuracy=3.2,
+                is_valid=True,
+                source='edge_device',
+                timestamp=datetime.utcnow(),
             ))
 
-        # Seed Detections
+        # Seed Detections with GPS Association & Reliability Metadata
         demo_detections = [
             {
                 'id': 'det-blr-01',
                 'sess': 'session-blr-north-01',
+                'veh': 'RV-1001',
                 'cat': 'pothole',
                 'conf': 0.94,
                 'sev': 'High',
@@ -922,6 +1390,7 @@ def seed_demo_data():
             {
                 'id': 'det-blr-02',
                 'sess': 'session-blr-north-01',
+                'veh': 'RV-1001',
                 'cat': 'longitudinal_crack',
                 'conf': 0.88,
                 'sev': 'Medium',
@@ -936,6 +1405,7 @@ def seed_demo_data():
             {
                 'id': 'det-blr-03',
                 'sess': 'session-blr-north-01',
+                'veh': 'RV-1001',
                 'cat': 'alligator_crack',
                 'conf': 0.85,
                 'sev': 'High',
@@ -950,6 +1420,7 @@ def seed_demo_data():
             {
                 'id': 'det-blr-04',
                 'sess': 'session-blr-north-01',
+                'veh': 'RV-1001',
                 'cat': 'transverse_crack',
                 'conf': 0.82,
                 'sev': 'Low',
@@ -964,6 +1435,7 @@ def seed_demo_data():
             {
                 'id': 'det-blr-05',
                 'sess': 'session-blr-north-01',
+                'veh': 'RV-1001',
                 'cat': 'damaged_surface',
                 'conf': 0.79,
                 'sev': 'Medium',
@@ -978,6 +1450,7 @@ def seed_demo_data():
             {
                 'id': 'det-blr-06',
                 'sess': 'session-blr-live-02',
+                'veh': 'RV-1018',
                 'cat': 'pothole',
                 'conf': 0.96,
                 'sev': 'High',
@@ -995,6 +1468,7 @@ def seed_demo_data():
             det = DetectionEvent(
                 detection_id=item['id'],
                 session_id=item['sess'],
+                vehicle_id=item['veh'],
                 category=item['cat'],
                 confidence=item['conf'],
                 severity=item['sev'],
@@ -1004,6 +1478,9 @@ def seed_demo_data():
                 road_segment=item['road'],
                 review_status=item['status'],
                 source='demo_heuristic',
+                is_location_reliable=True,
+                location_warning='Verified fresh GPS sample. (Note: Camera forward look-ahead offset of ~5-15m applies).',
+                timestamp=datetime.utcnow(),
             )
             session.add(det)
 

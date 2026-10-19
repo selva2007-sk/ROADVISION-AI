@@ -101,38 +101,49 @@ export function createDamageIcon(severity = 'Medium') {
 }
 
 /**
- * Vehicle GPS live location pin with radar circle
+ * Vehicle GPS live location pin with radar circle and optional directional bearing
  */
-export function createVehicleIcon() {
+export function createVehicleIcon(heading = null, speed = 0) {
+  const rotation = heading !== null ? heading : 0;
+  const hasHeading = heading !== null && speed > 2;
+
   const svgHtml = `
     <div style="
       position: relative;
-      width: 32px;
-      height: 32px;
+      width: 36px;
+      height: 36px;
       display: flex;
       align-items: center;
       justify-content: center;
     ">
       <div style="
         position: absolute;
-        width: 32px;
-        height: 32px;
+        width: 36px;
+        height: 36px;
         border-radius: 9999px;
-        background: rgba(37, 99, 235, 0.3);
-        animation: pulse 1.5s infinite;
+        background: rgba(37, 99, 235, 0.25);
+        animation: pulse 1.8s infinite;
       "></div>
       <div style="
-        width: 18px;
-        height: 18px;
+        width: 22px;
+        height: 22px;
         border-radius: 9999px;
         background: #2563EB;
-        border: 3px solid #ffffff;
-        box-shadow: 0 2px 6px rgba(37,99,235,0.5);
+        border: 2.5px solid #ffffff;
+        box-shadow: 0 3px 8px rgba(37,99,235,0.45);
         display: flex;
         align-items: center;
         justify-content: center;
+        transform: rotate(${rotation}deg);
+        transition: transform 0.3s ease;
       ">
-        <div style="width: 4px; height: 4px; background: white; border-radius: 9999px;"></div>
+        ${hasHeading ? `
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 19 21 12 17 5 21 12 2" fill="white" />
+          </svg>
+        ` : `
+          <div style="width: 6px; height: 6px; background: white; border-radius: 9999px;"></div>
+        `}
       </div>
     </div>
   `;
@@ -140,8 +151,72 @@ export function createVehicleIcon() {
   return L.divIcon({
     className: 'custom-vehicle-pin',
     html: svgHtml,
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
-    popupAnchor: [0, -16],
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+    popupAnchor: [0, -18],
   });
 }
+
+/**
+ * Format coordinates into human-readable degrees with directional suffix
+ */
+export function formatCoordinates(lat, lng, decimals = 5) {
+  if (lat === null || lat === undefined || lng === null || lng === undefined) {
+    return 'Coordinates N/A';
+  }
+  const latNum = Number(lat);
+  const lngNum = Number(lng);
+  const latDir = latNum >= 0 ? 'N' : 'S';
+  const lngDir = lngNum >= 0 ? 'E' : 'W';
+  return `${Math.abs(latNum).toFixed(decimals)}° ${latDir}, ${Math.abs(lngNum).toFixed(decimals)}° ${lngDir}`;
+}
+
+/**
+ * External mapping service direction links
+ */
+export function getDirectionsUrl(lat, lng, provider = 'google') {
+  if (provider === 'osm') {
+    return `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=;${lat}%2C${lng}`;
+  }
+  return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+}
+
+/**
+ * Standardized status style helper
+ */
+export function getGPSStatusBadge(status) {
+  switch (status) {
+    case 'GPS Connected':
+      return {
+        bg: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        dot: 'bg-emerald-500 animate-pulse',
+        label: 'GPS Connected',
+      };
+    case 'GPS Signal Unreliable':
+      return {
+        bg: 'bg-amber-50 text-amber-700 border-amber-200',
+        dot: 'bg-amber-500',
+        label: 'GPS Signal Unreliable',
+      };
+    case 'GPS Reconnecting':
+      return {
+        bg: 'bg-blue-50 text-blue-700 border-blue-200',
+        dot: 'bg-blue-500 animate-ping',
+        label: 'GPS Reconnecting',
+      };
+    case 'GPS Permission Denied':
+      return {
+        bg: 'bg-rose-50 text-rose-700 border-rose-200',
+        dot: 'bg-rose-500',
+        label: 'GPS Permission Denied',
+      };
+    case 'GPS Unavailable':
+    default:
+      return {
+        bg: 'bg-slate-100 text-slate-600 border-slate-200',
+        dot: 'bg-slate-400',
+        label: 'GPS Unavailable',
+      };
+  }
+}
+
