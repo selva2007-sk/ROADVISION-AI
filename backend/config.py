@@ -20,6 +20,11 @@ class Settings:
         self.api_port = int(os.getenv('API_PORT', '5000'))
         self.data_dir = default_dir
 
+        self.upload_dir = Path(os.getenv('UPLOAD_DIR', str(default_dir / 'uploads')))
+        self.upload_dir.mkdir(parents=True, exist_ok=True)
+        self.max_upload_size = int(os.getenv('MAX_UPLOAD_SIZE', 10 * 1024 * 1024))  # 10MB
+        self.allowed_extensions = {'png', 'jpg', 'jpeg', 'webp'}
+
         self.data_dir.mkdir(parents=True, exist_ok=True)
 
         db_dir = Path(self.database_path).parent
@@ -37,3 +42,4 @@ class Settings:
 
 
 settings = Settings()
+

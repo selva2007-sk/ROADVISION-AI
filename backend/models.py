@@ -10,8 +10,10 @@ class UserProfile(Base):
     username = Column(String(80), unique=True, nullable=False, default='admin')
     full_name = Column(String(120), nullable=False, default='Chief Engineer Alex Morgan')
     email = Column(String(120), nullable=False, default='alex.morgan@roadvision.gov')
+    password_hash = Column(String(256), nullable=True)
     phone = Column(String(40), nullable=True, default='+1 (555) 438-9210')
     role = Column(String(50), nullable=False, default='Administrator')  # Administrator, Inspection Operator, Maintenance Staff, Viewer
+    status = Column(String(40), nullable=False, default='active')  # active, suspended
     department = Column(String(120), nullable=True, default='Urban Road Infrastructure & Civil Assets')
     avatar_url = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -31,6 +33,7 @@ class Vehicle(Base):
     current_speed = Column(Float, nullable=True)
     gps_accuracy = Column(Float, nullable=True)
     gps_source = Column(String(50), default='browser')
+    is_active = Column(Boolean, default=True)
     last_location_update = Column(DateTime(timezone=True), nullable=True)
     last_inspection_date = Column(DateTime(timezone=True), nullable=True)
 
@@ -40,6 +43,7 @@ class InspectionSession(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     session_id = Column(String(120), unique=True, nullable=False)
     vehicle_id = Column(String(120), nullable=True)
+    operator_id = Column(String(120), nullable=True, default='alex.morgan')
     status = Column(String(40), default='created')  # created, recording, paused, completed
     start_time = Column(DateTime(timezone=True), server_default=func.now())
     end_time = Column(DateTime(timezone=True), nullable=True)
@@ -88,11 +92,26 @@ class Report(Base):
     __tablename__ = 'reports'
     id = Column(Integer, primary_key=True, autoincrement=True)
     detection_id = Column(String(120), unique=True, nullable=False)
-    status = Column(String(40), default='Detected')  # Detected, Pending Review, Verified, Repair Scheduled, In Progress, Repaired
+    status = Column(String(40), default='Detected')  # Detected, Pending Review, Verified, Repair Scheduled, In Progress, Repaired, Rejected
     assigned_team = Column(String(120), nullable=True)
+    priority = Column(String(40), default='Medium')  # Low, Medium, High, Urgent
     maintenance_notes = Column(Text, nullable=True)
     repair_evidence = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class RepairHistory(Base):
+    __tablename__ = 'repair_history'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    report_id = Column(Integer, nullable=True)
+    detection_id = Column(String(120), nullable=False)
+    previous_status = Column(String(40), nullable=True)
+    new_status = Column(String(40), nullable=False)
+    updated_by = Column(String(120), nullable=False, default='alex.morgan')
+    maintenance_notes = Column(Text, nullable=True)
+    evidence_image = Column(Text, nullable=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
 
 
 class CameraStatus(Base):
@@ -101,3 +120,4 @@ class CameraStatus(Base):
     status = Column(String(40), default='Disconnected')
     device_name = Column(String(120), nullable=True)
     connected = Column(Boolean, default=False)
+
