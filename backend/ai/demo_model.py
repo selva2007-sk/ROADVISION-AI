@@ -156,6 +156,7 @@ class RoadDamageInferenceEngine:
         """Demo heuristic mode: uses OpenCV edge detection on the lower road ROI
         to detect realistic road irregularities and generate labeled demo detections.
         """
+        detections: List[Dict[str, Any]] = []
         candidate_boxes = []
         if cv2 is not None:
             try:

@@ -38,7 +38,7 @@ def validate_coordinates(lat: Any, lng: Any) -> Tuple[bool, Optional[float], Opt
 
     # Check for (0,0) "Null Island" error common in uninitialized hardware
     if abs(lat_f) < 0.0001 and abs(lng_f) < 0.0001:
-        return False, lat_f, lng_f, "Coordinates (0,0) indicate uninitialized GPS receiver / no fix"
+        return False, lat_f, lng_f, "Coordinates (0,0) [Null Island] indicate uninitialized GPS receiver / no fix"
 
     return True, round(lat_f, 7), round(lng_f, 7), None
 
